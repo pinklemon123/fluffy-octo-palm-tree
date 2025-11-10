@@ -15,6 +15,6 @@
   "buildCommand": "cd frontend && npm run build",
   "routes": [
     { "src": "/api/(.*)", "dest": "backend/api/index.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/(.*)", "dest": "index.html" }
   ]
 }
