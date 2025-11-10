@@ -1,0 +1,64 @@
+body {
+  font-family: system-ui, Arial, sans-serif;
+  max-width: 760px;
+  margin: 40px auto;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #e3f0ff 0%, #ffffff 100%);
+}
+input, textarea, button {
+  font-size: 16px;
+  padding: 8px;
+  margin: 4px 0;
+  border-radius: 6px;
+  border: 1px solid #bcdcff;
+}
+button {
+  background: linear-gradient(90deg, #3498db 0%, #6dd5fa 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(52,152,219,0.08);
+  transition: background 0.2s;
+}
+button:hover {
+  background: linear-gradient(90deg, #2980b9 0%, #3498db 100%);
+}
+.post {
+  border: 1px solid #bcdcff;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 10px 0;
+  background: #f7fbff;
+}
+.meta {
+  color: #3498db;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.profile-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(52,152,219,0.08);
+  padding: 24px;
+  margin: 32px auto;
+  max-width: 400px;
+  text-align: center;
+}
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 16px;
+  border: 2px solid #3498db;
+}
+.profile-bio {
+  color: #2980b9;
+  font-size: 15px;
+  margin-top: 12px;
+}

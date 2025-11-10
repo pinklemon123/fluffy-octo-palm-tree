@@ -1,0 +1,45 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/styles.css"/>
+<title>讨论区</title></head><body>
+<div class="row">
+  <h2 style="flex:1">公共讨论区</h2>
+  <a href="/profile.html">我的</a>
+  <a href="/login.html">登录</a>
+</div>
+<div class="row">
+  <textarea id="content" rows="3" style="flex:1" placeholder="说点什么..."></textarea>
+  <button id="send">发送</button>
+</div>
+<div id="list"></div>
+
+<script>
+async function load(){
+  const r = await fetch('/api/posts/list'); const j = await r.json();
+  const el = document.getElementById('list'); el.innerHTML='';
+  (j.data||[]).forEach(p=>{
+    let preview = '';
+    if(p.file && p.file.mime){
+      if(p.file.mime.startsWith('image/')) preview = `<img src='${p.file.url||""}' style='max-width:120px;max-height:80px'>`;
+      else if(p.file.mime==='application/pdf') preview = `<a href='${p.file.url||""}' target='_blank'>PDF预览</a>`;
+      else if(p.file.mime==='text/html') preview = `<iframe src='${p.file.url||""}' style='width:200px;height:120px'></iframe>`;
+      else preview = `<a href='${p.file.url||""}' target='_blank'>下载</a>`;
+    }
+    el.innerHTML += `<div class="post">
+      <div class="meta"><a href='/profile.html?user=${encodeURIComponent(p.user?.username||'')}' style='color:#3498db;text-decoration:underline;'>${p.user?.username||'匿名'}</a> · ${new Date(p.createdAt).toLocaleString()}</div>
+      <div>${escapeHtml(p.content)}</div>
+      ${preview}
+    </div>`;
+  });
+}
+function escapeHtml(s){return s.replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+document.getElementById('send').onclick = async () => {
+  const token = localStorage.getItem('token'); if(!token) return alert('请先登录');
+  const content = contentEl.value.trim(); if(!content) return;
+  const r = await fetch('/api/posts/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({content})});
+  const j = await r.json(); if(j.ok){ contentEl.value=''; load(); } else alert(j.error||'失败');
+};
+const contentEl = document.getElementById('content');
+load(); setInterval(load, 3000);
+</script>
+</body></html>

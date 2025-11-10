@@ -1,0 +1,95 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/styles.css"/>
+<title>个人空间</title></head><body>
+<div id="profile"></div>
+<div id="uploadBox"></div>
+<div id="files"></div>
+<div id="follows"></div>
+<script>
+function getQuery(name){
+  const m = location.search.match(new RegExp('[?&]'+name+'=([^&]*)')); return m?decodeURIComponent(m[1]):'';
+}
+const user = getQuery('user');
+const myToken = localStorage.getItem('token');
+let myName = '';
+
+async function loadProfile(){
+  if(!user){ document.getElementById('profile').innerHTML = '<p>未指定用户</p>'; return; }
+  const r = await fetch('/api/profile/view?user='+encodeURIComponent(user));
+  const j = await r.json();
+  if(!j.ok){ document.getElementById('profile').innerHTML = '<p>用户不存在</p>'; return; }
+  const p = j.profile;
+  document.getElementById('profile').innerHTML = `<div class='profile-card'>
+    <img class='profile-avatar' src='${p.avatarUrl||"https://via.placeholder.com/80?text=👤"}' alt='头像'/>
+    <h3>${p.username}</h3>
+    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>
+    </div>`;
+}
+
+async function loadFiles(){
+  const r = await fetch('/api/files/list?user='+encodeURIComponent(user));
+  const j = await r.json();
+  if(!j.ok){ document.getElementById('files').innerHTML = '<p>无文件</p>'; return; }
+  const files = j.files||[];
+  document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + files.map(f=>{
+    let preview = '';
+    if(f.mime.startsWith('image/')) preview = `<img src='${f.url||""}' style='max-width:120px;max-height:80px'>`;
+    else if(f.mime==='application/pdf') preview = `<a href='${f.url||""}' target='_blank'>PDF预览</a>`;
+    else if(f.mime==='text/html') preview = `<iframe src='${f.url||""}' style='width:200px;height:120px'></iframe>`;
+    else preview = `<a href='${f.url||""}' target='_blank'>下载</a>`;
+    return `<div class='post'><b>${f.filename}</b> (${f.mime}) ${preview}</div>`;
+  }).join('');
+}
+
+async function loadFollows(){
+  const r = await fetch('/api/follow/list?user='+encodeURIComponent(user));
+  const j = await r.json();
+  const follows = j.follows||[];
+  document.getElementById('follows').innerHTML = `<h4>关注列表</h4>` + follows.map(f=>`<a href='/profile.html?user=${encodeURIComponent(f.following)}'>${f.following}</a>`).join(', ');
+}
+
+function showUpload(){
+  if(!myToken) return;
+  if(user!==myName) return;
+  document.getElementById('uploadBox').innerHTML = `<h4>上传文件</h4>
+    <form id='upform'><input type='file' name='file'><button type='submit'>上传</button></form>`;
+  document.getElementById('upform').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(document.getElementById('upform'));
+    const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+myToken},body:fd});
+    const j = await r.json();
+    if(j.ok){ alert('上传成功'); loadFiles(); } else alert(j.error||'失败');
+  };
+}
+
+function showFollow(){
+  if(!myToken) return;
+  if(user===myName) return;
+  document.getElementById('uploadBox').innerHTML = `<button id='followBtn'>关注Ta</button>`;
+  document.getElementById('followBtn').onclick = async ()=>{
+    const r = await fetch('/api/follow/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
+    const j = await r.json();
+    if(j.ok){ alert('已关注'); loadFollows(); } else alert(j.error||'失败');
+  };
+}
+
+async function getMyName(){
+  if(!myToken) return;
+  // 取当前登录用户名
+  try{
+    const payload = JSON.parse(atob(myToken.split('.')[1]));
+    myName = payload.username;
+  }catch{}
+}
+
+(async function(){
+  await getMyName();
+  await loadProfile();
+  await loadFiles();
+  await loadFollows();
+  if(myToken){
+    if(user===myName) showUpload();
+    else showFollow();
+  }
+})();
