@@ -24,6 +24,14 @@ A web forum application with user registration, file uploads, real-time chat, an
 5. Install dependencies: `cd frontend && npm install`
 6. Start the app: `npm start`
 
+## Deployment to Vercel
+
+1. Connect your GitHub repo to Vercel
+2. Set environment variables in Vercel:
+   - `REACT_APP_SUPABASE_URL`: Your Supabase project URL
+   - `REACT_APP_SUPABASE_ANON_KEY`: Your Supabase anon key
+3. Deploy
+
 ## Project Structure
 
 - `frontend/`: React application
