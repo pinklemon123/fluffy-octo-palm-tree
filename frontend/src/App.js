@@ -10,16 +10,18 @@ import Messages from './pages/Messages';
 function App() {
   return (
     <Router>
-      <Header />
-      <div className="main-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/forum" element={<Forum />} />
-          <Route path="/messages" element={<Messages />} />
-        </Routes>
+      <div className="app-container">
+        <Header />
+        <div className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/forum" element={<Forum />} />
+            <Route path="/messages" element={<Messages />} />
+          </Routes>
+        </div>
+        <Footer />
       </div>
-      <Footer />
     </Router>
   );
 }
