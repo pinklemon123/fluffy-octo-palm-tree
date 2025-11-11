@@ -1,15 +1,17 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" href="/public/styles.css"/>
+<link rel="stylesheet" href="/styles.css"/>
 <title>讨论区</title></head><body>
 <div class="row">
   <h2 style="flex:1">公共讨论区</h2>
   <div id="authBox">
-    <a href="/public/profile.html">我的</a>
-    <a href="/public/login.html" id="loginLink">登录</a>
+    <a href="/profile">我的</a>
+    <a href="/login" id="loginLink">登录</a>
     <button id="logoutBtn" style="display:none">退出</button>
   </div>
 </div>
+
+<div id="dbStatus" style="margin:.5rem 0;padding:.5rem;border-radius:6px;font-size:14px;"></div>
 
 <div class="row" style="gap:.5rem;align-items:flex-start">
   <textarea id="content" rows="3" style="flex:1" placeholder="说点什么..."></textarea>
@@ -31,6 +33,29 @@ logoutBtn.onclick = ()=>{ localStorage.removeItem('token'); location.reload(); }
 
 function escapeHtml(s){return (s||'').replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 
+// 检查数据库状态
+async function checkDatabase() {
+  try {
+    const r = await fetch('/api/db-init');
+    const j = await r.json();
+    const el = document.getElementById('dbStatus');
+    if(j.ready) {
+      el.innerHTML = '✅ 数据库已就绪';
+      el.style.backgroundColor = '#d4edda';
+      el.style.color = '#155724';
+    } else {
+      el.innerHTML = `⚠️ ${j.message} - <a href="/api/db-check" target="_blank">检查详情</a>`;
+      el.style.backgroundColor = '#fff3cd';
+      el.style.color = '#856404';
+    }
+  } catch(e) {
+    const el = document.getElementById('dbStatus');
+    el.innerHTML = '❌ 数据库连接失败 - 请检查环境变量配置';
+    el.style.backgroundColor = '#f8d7da';
+    el.style.color = '#721c24';
+  }
+}
+
 async function load(){
   const r = await fetch('/api/posts/list'); const j = await r.json();
   const items = j.data||[];
@@ -46,7 +71,7 @@ async function load(){
     }
     const uname = (p.user&&p.user.username) || '匿名';
     el.innerHTML += `<div class="post">
-      <div class="meta"><a href='/public/profile.html?user=${encodeURIComponent(uname)}'>${uname}</a> · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
+      <div class="meta"><a href='/profile?user=${encodeURIComponent(uname)}'>${uname}</a> · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div>${escapeHtml(p.content||'')}</div>
       ${preview}
     </div>`;
@@ -87,5 +112,6 @@ document.getElementById('send').onclick = async () => {
 };
 
 load(); setInterval(load, 3000);
+checkDatabase();
 </script>
 </body></html>

@@ -1,6 +1,6 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" href="/public/styles.css"/>
+<link rel="stylesheet" href="/styles.css"/>
 <title>注册</title></head><body>
 <h2>注册</h2>
 <div>
@@ -8,7 +8,7 @@
   <input id="password" type="password" placeholder="密码（至少6位）" minlength="6"/>
   <button id="btn">注册</button>
 </div>
-<p><a href="/public/login.html">已有账号？去登录</a></p>
+<p><a href="/login">已有账号？去登录</a></p>
 <script>
 const u = document.getElementById('username');
 const p = document.getElementById('password');
@@ -17,7 +17,7 @@ document.getElementById('btn').onclick = async () => {
   if(!username || password.length<6) return alert('用户名必填，密码至少6位');
   const r = await fetch('/api/users/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
   const j = await r.json();
-  if(j.ok){ alert('注册成功'); location.href='/public/login.html'; } else { alert(j.error||'失败'); }
+  if(j.ok){ alert('注册成功'); location.href='/login'; } else { alert(j.error||'失败'); }
 };
 </script>
 </body></html>
