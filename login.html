@@ -8,7 +8,8 @@
   <input id="password" type="password" placeholder="密码"/>
   <button id="btn">登录</button>
 </div>
-<p><a href="register.html">没有账号？去注册</a></p>
+<p style="color: #666; font-size: 14px;">💡 没有账号？第一次登录会自动创建账号</p>
+<p><a href="index.html">← 返回首页</a></p>
 <script>
 const u = document.getElementById('username');
 const p = document.getElementById('password');
@@ -19,10 +20,17 @@ document.getElementById('btn').onclick = async () => {
   const j = await r.json();
   if(j.ok){ 
     localStorage.setItem('token',j.token); 
-    localStorage.setItem('userId', j.user.id);  // ← 关键：保存userId
+    localStorage.setItem('userId', j.userId);  // ⛳ 使用正确的字段名
+    localStorage.setItem('username', payload.username);  // 保存用户名以备后用
+    
+    // 如果是新用户，给个提示
+    if(j.isNewUser) {
+      alert(`欢迎 ${payload.username}！账号已自动创建`);
+    }
+    
     location.href='index.html'; 
   } else { 
-    alert(j.error||'失败'); 
+    alert(j.error||'登录失败'); 
   }
 };
 </script>

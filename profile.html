@@ -26,9 +26,9 @@ async function loadProfile(){
   if(!j.ok){ document.getElementById('profile').innerHTML = '<p>用户不存在</p>'; return; }
   const p = j.profile;
   document.getElementById('profile').innerHTML = `<div class='profile-card'>
-    <img class='profile-avatar' src='${p.avatarUrl||"https://via.placeholder.com/80?text=👤"}' alt='头像'/>
+    <img class='profile-avatar' src='${p.avatarUrl||"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB4PSIyOCIgeT0iMjAiIHdpZHRoPSIyNCIgaGVpZ2h0PSI0MCI+Cjx0ZXh0IHg9IjEyIiB5PSIzMiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD4KPHN2Zz4="}' alt='头像'/>
     <h3>${p.username}</h3>
-    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>
+    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>`
   </div>`;
 }
 
