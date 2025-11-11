@@ -1,6 +1,6 @@
 import { IncomingForm } from 'formidable';
 import { readFile } from 'fs/promises';
-import { requireUser } from '../_utils/auth-node.js';
+import { requireAuth } from '../_utils/auth-node.js';
 import { q } from '../_utils/db-node.js';
 
 export const config = {
@@ -25,13 +25,13 @@ function parseForm(req) {
 }
 
 export default async function handler(req, res) {
-  try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
-    }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+  }
 
-    // 验证用户身份
-    const user = requireUser(req);
+  try {
+    // ⛳ 验证用户身份，获取 userId
+    const userId = requireAuth(req);
 
     // 解析表单数据
     const { files } = await parseForm(req);
@@ -50,18 +50,10 @@ export default async function handler(req, res) {
     const mimeType = fileObj.mimetype || 'application/octet-stream';
     const size = buffer.length;
 
-    // 获取用户ID
-    const userRows = await q('SELECT id FROM users WHERE username = $1', [user.username]);
-    if (!userRows.rows[0]) {
-      return res.status(401).json({ ok: false, error: '用户不存在' });
-    }
-
-    const user_id = userRows.rows[0].id;
-
     // 将文件存储到数据库（bytea 字段）
     const result = await q(
       'INSERT INTO files(user_id, filename, mime, size, data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [user_id, filename, mimeType, size, buffer]
+      [userId, filename, mimeType, size, buffer]
     );
 
     const fileId = result.rows[0].id;
@@ -85,6 +77,7 @@ export default async function handler(req, res) {
     
     if (msg.includes('missing token') || msg.includes('invalid token')) {
       code = 401;
+      msg = '请先登录';
     } else if (msg.includes('maxFileSize exceeded')) {
       code = 400;
       msg = '文件过大，请选择小于 10MB 的文件';
