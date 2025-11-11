@@ -81,18 +81,30 @@ async function load(){
 async function uploadFileIfAny(){
   const f = document.getElementById('fileInput').files[0];
   if(!f) return null;
-  const r = await fetch('/api/files/upload',{
-    method:'POST',
-    headers:{
-      'Authorization':'Bearer '+token,
-      'Content-Type': f.type,
-      'X-Filename': f.name
-    },
-    body: f
+
+  const fd = new FormData();
+  fd.append('file', f);                   // 字段名必须叫 'file'
+
+  // 只加 Authorization，不要自己设 Content-Type！
+  const h = new Headers();
+  const token = localStorage.getItem('token');
+  if (token) h.set('Authorization', `Bearer ${token}`);
+
+  const resp = await fetch('/api/files/upload', {
+    method: 'POST',
+    headers: h,
+    body: fd
   });
-  const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'上传失败');
-  return j.file?.id || j.id || null;
+
+  // 400/500 时，把服务端返回的错误也弹出来，便于定位
+  let data;
+  const text = await resp.text();
+  try { data = JSON.parse(text); } catch { data = { ok:false, error:text }; }
+
+  if (!resp.ok || !data.ok) {
+    throw new Error(data.error || `上传失败(${resp.status})`);
+  }
+  return data.file?.id || data.id || null;
 }
 
 document.getElementById('send').onclick = async () => {
