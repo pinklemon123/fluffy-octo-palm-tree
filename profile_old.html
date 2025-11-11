@@ -1,0 +1,155 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="styles.css"/>
+<title>个人空间</title></head><body>
+<div id="profile"></div>
+<div id="uploadBox" style="margin:.5rem 0;"></div>
+<div id="files"></div>
+<div id="follows"></div>
+
+<script>
+function getQuery(name){ const m = location.search.match(new RegExp('[?&]'+name+'=([^&]*)')); return m?decodeURIComponent(m[1]):''; }
+const user = getQuery('user') || '';
+const myToken = localStorage.getItem('token');
+let myName = '';
+
+async function getMyName(){
+  if(!myToken) return;
+  try{ myName = JSON.parse(atob(myToken.split('.')[1]))?.username || ''; }catch{}
+}
+
+async function loadProfile(){
+  const target = user || myName;
+  if(!target){ document.getElementById('profile').innerHTML = '<p>未指定用户</p>'; return; }
+  const r = await fetch('/api/profile/view?user='+encodeURIComponent(target));
+  const j = await r.json();
+  if(!j.ok){ document.getElementById('profile').innerHTML = '<p>用户不存在</p>'; return; }
+  const p = j.profile;
+  document.getElementById('profile').innerHTML = `<div class='profile-card'>
+    <img class='profile-avatar' src='${p.avatarUrl||"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB4PSIyOCIgeT0iMjAiIHdpZHRoPSIyNCIgaGVpZ2h0PSI0MCI+Cjx0ZXh0IHg9IjEyIiB5PSIzMiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD4KPHN2Zz4="}' alt='头像'/>
+    <h3>${p.username}</h3>
+    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>`
+  </div>`;
+}
+
+async function loadFiles(){
+  const target = user || myName;
+  const r = await fetch('/api/files/list?user='+encodeURIComponent(target));
+  const j = await r.json();
+  const files = j.files||[];
+  document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + (files.length? files.map(f=>{
+    let preview = '';
+    const fileUrl = `/api/files/${f.id}`;
+    if(f.mime.startsWith('image/')) {
+      preview = `<img src='${fileUrl}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
+    } else if(f.mime === 'application/pdf') {
+      preview = `<a href='${fileUrl}' target='_blank'>PDF预览</a>`;
+    } else if(f.mime === 'text/html') {
+      preview = `<iframe src='${fileUrl}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
+    } else {
+      preview = `<a href='${fileUrl}' download='${f.filename}'>下载</a>`;
+    }
+    return `<div class='post'><b>${f.filename}</b> (${f.mime}, ${(f.size/1024).toFixed(1)}KB) ${preview}</div>`;
+  }).join('') : '<p>暂无文件</p>');
+}
+
+async function loadFollows(){
+  const target = user || myName;
+  const r = await fetch('/api/follow/list?user='+encodeURIComponent(target));
+  const j = await r.json();
+  const follows = j.follows||[];
+  document.getElementById('follows').innerHTML = `<h4>关注列表</h4>` + (follows.length? follows.map(f=>`<a href='/public/profile.html?user=${encodeURIComponent(f.following)}'>${f.following}</a>`).join(', ') : '暂无');
+}
+
+function showSelfControls(){
+  const target = user || myName;
+  if(!myToken || target!==myName) return;
+  document.getElementById('uploadBox').innerHTML = `
+    <h4>上传文件</h4>
+    <form id='upform' style='margin-bottom:.75rem'><input type='file' name='file'><button type='submit'>上传</button></form>
+    <h4>编辑资料</h4>
+    <div style='display:flex;gap:.5rem;flex-wrap:wrap'>
+      <input id='avatar' placeholder='头像URL' style='min-width:260px'>
+      <input id='bio' placeholder='个人简介' style='min-width:260px'>
+      <button id='saveProfile'>保存</button>
+    </div>`;
+  document.getElementById('upform').onsubmit = async e => {
+    e.preventDefault();
+    const fileInput = document.getElementById('upform').querySelector('input[type="file"]');
+    const file = fileInput.files[0];
+    if(!file) { alert('请选择文件'); return; }
+    
+    // 文件大小检查（10MB限制）
+    if(file.size > 10 * 1024 * 1024) {
+      alert('文件过大，请选择小于 10MB 的文件');
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file); // 字段名必须叫 'file'
+
+      const headers = {};
+      if (myToken) headers['Authorization'] = `Bearer ${myToken}`;
+
+      const resp = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: headers,
+        body: fd // 不要手动设置 Content-Type！
+      });
+
+      // 处理响应
+      let data;
+      const text = await resp.text();
+      try { 
+        data = JSON.parse(text); 
+      } catch { 
+        data = { ok: false, error: text }; 
+      }
+
+      if (!resp.ok || !data.ok) {
+        alert(data.error || `上传失败(${resp.status})`);
+      } else {
+        alert('上传成功'); 
+        loadFiles();
+      }
+    } catch (error) {
+      alert('上传失败: ' + error.message);
+    }
+  };
+  document.getElementById('saveProfile').onclick = async ()=>{
+    const avatar = document.getElementById('avatar').value.trim();
+    const bio = document.getElementById('bio').value.trim();
+    const r = await fetch('/api/profile/update',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({avatarUrl:avatar,bio})});
+    const j = await r.json();
+    if(j.ok){ alert('保存成功'); loadProfile(); } else alert(j.error||'失败');
+  };
+}
+
+function showFollowBtn(){
+  const target = user || myName;
+  if(!myToken || !user || user===myName) return;
+  document.getElementById('uploadBox').innerHTML = `<button id='followBtn'>关注Ta</button>
+    <button id='unfollowBtn' style='margin-left:.5rem'>取消关注</button>`;
+  document.getElementById('followBtn').onclick = async ()=>{
+    const r = await fetch('/api/follow/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
+    const j = await r.json(); if(j.ok){ alert('已关注'); loadFollows(); } else alert(j.error||'失败');
+  };
+  document.getElementById('unfollowBtn').onclick = async ()=>{
+    const r = await fetch('/api/follow/remove',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
+    const j = await r.json(); if(j.ok){ alert('已取消关注'); loadFollows(); } else alert(j.error||'失败');
+  };
+}
+
+(async function(){
+  await getMyName();
+  await loadProfile();
+  await loadFiles();
+  await loadFollows();
+  if(myToken){
+    if((user||myName)===myName) showSelfControls();
+    else showFollowBtn();
+  }
+})();
+</script>
+</body></html>
