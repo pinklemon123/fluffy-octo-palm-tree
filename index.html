@@ -25,10 +25,17 @@
 <div id="list"></div>
 
 <script>
-const token = localStorage.getItem('token');
+// 封装成函数，随用随取，避免拿到旧 token
+const getToken = () => localStorage.getItem('token');
+
 const loginLink = document.getElementById('loginLink');
 const logoutBtn = document.getElementById('logoutBtn');
-if(token){ loginLink.style.display='none'; logoutBtn.style.display='inline-block'; }
+
+// 初始 UI
+if (getToken()) { 
+  loginLink.style.display='none'; 
+  logoutBtn.style.display='inline-block'; 
+}
 logoutBtn.onclick = ()=>{ localStorage.removeItem('token'); location.reload(); };
 
 function escapeHtml(s){return (s||'').replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
@@ -96,9 +103,9 @@ async function uploadFileIfAny(){
   const fd = new FormData();
   fd.append('file', f); // 字段名必须叫 'file'
 
-  const token = localStorage.getItem('token');
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = new Headers();
+  const t = getToken();
+  if (t) headers.set('Authorization', `Bearer ${t}`);
 
   const resp = await fetch('/api/files/upload', {
     method: 'POST',
@@ -122,19 +129,37 @@ async function uploadFileIfAny(){
 }
 
 document.getElementById('send').onclick = async () => {
-  if(!token) return alert('请先登录');
+  const t = getToken();                 // ⛳ 发帖时也实时读取
+  if(!t) return alert('请先登录');
+
   const contentEl = document.getElementById('content');
-  const content = contentEl.value.trim(); if(!content && !document.getElementById('fileInput').files[0]) return;
+  const content = contentEl.value.trim();
+  const hasFile = !!document.getElementById('fileInput').files[0];
+  if(!content && !hasFile) return;
+
   try{
     const fileId = await uploadFileIfAny();
-    const r = await fetch('/api/posts/create',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({content, fileId})
+
+    const resp = await fetch('/api/posts/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${t}`  // ⛳ 保证携带最新 token
+      },
+      body: JSON.stringify({ content, fileId })
     });
-    const j = await r.json();
-    if(j.ok){ contentEl.value=''; document.getElementById('fileInput').value=''; load(); } else alert(j.error||'失败');
-  }catch(e){ alert(e.message||'失败'); }
+
+    const j = await resp.json();
+    if(j.ok){
+      contentEl.value=''; 
+      document.getElementById('fileInput').value='';
+      load();
+    }else{
+      alert(j.error || '失败');
+    }
+  } catch(e){
+    alert(e.message || '失败');
+  }
 };
 
 load(); setInterval(load, 3000);
