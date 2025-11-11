@@ -1,0 +1,112 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/public/styles.css"/>
+<title>个人空间</title></head><body>
+<div id="profile"></div>
+<div id="uploadBox" style="margin:.5rem 0;"></div>
+<div id="files"></div>
+<div id="follows"></div>
+
+<script>
+function getQuery(name){ const m = location.search.match(new RegExp('[?&]'+name+'=([^&]*)')); return m?decodeURIComponent(m[1]):''; }
+const user = getQuery('user') || '';
+const myToken = localStorage.getItem('token');
+let myName = '';
+
+async function getMyName(){
+  if(!myToken) return;
+  try{ myName = JSON.parse(atob(myToken.split('.')[1]))?.username || ''; }catch{}
+}
+
+async function loadProfile(){
+  const target = user || myName;
+  if(!target){ document.getElementById('profile').innerHTML = '<p>未指定用户</p>'; return; }
+  const r = await fetch('/api/profile/view?user='+encodeURIComponent(target));
+  const j = await r.json();
+  if(!j.ok){ document.getElementById('profile').innerHTML = '<p>用户不存在</p>'; return; }
+  const p = j.profile;
+  document.getElementById('profile').innerHTML = `<div class='profile-card'>
+    <img class='profile-avatar' src='${p.avatarUrl||"https://via.placeholder.com/80?text=👤"}' alt='头像'/>
+    <h3>${p.username}</h3>
+    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>
+  </div>`;
+}
+
+async function loadFiles(){
+  const target = user || myName;
+  const r = await fetch('/api/files/list?user='+encodeURIComponent(target));
+  const j = await r.json();
+  const files = j.files||[];
+  document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + (files.length? files.map(f=>{
+    let preview = '';
+    if(f.mime.startsWith('image/')) preview = `<img src='${f.url||""}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
+    else if(f.mime==='application/pdf') preview = `<a href='${f.url||""}' target='_blank'>PDF预览</a>`;
+    else if(f.mime==='text/html') preview = `<iframe src='${f.url||""}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
+    else preview = `<a href='${f.url||""}' target='_blank'>下载</a>`;
+    return `<div class='post'><b>${f.filename}</b> (${f.mime}) ${preview}</div>`;
+  }).join('') : '<p>暂无文件</p>');
+}
+
+async function loadFollows(){
+  const target = user || myName;
+  const r = await fetch('/api/follow/list?user='+encodeURIComponent(target));
+  const j = await r.json();
+  const follows = j.follows||[];
+  document.getElementById('follows').innerHTML = `<h4>关注列表</h4>` + (follows.length? follows.map(f=>`<a href='/public/profile.html?user=${encodeURIComponent(f.following)}'>${f.following}</a>`).join(', ') : '暂无');
+}
+
+function showSelfControls(){
+  const target = user || myName;
+  if(!myToken || target!==myName) return;
+  document.getElementById('uploadBox').innerHTML = `
+    <h4>上传文件</h4>
+    <form id='upform' style='margin-bottom:.75rem'><input type='file' name='file'><button type='submit'>上传</button></form>
+    <h4>编辑资料</h4>
+    <div style='display:flex;gap:.5rem;flex-wrap:wrap'>
+      <input id='avatar' placeholder='头像URL' style='min-width:260px'>
+      <input id='bio' placeholder='个人简介' style='min-width:260px'>
+      <button id='saveProfile'>保存</button>
+    </div>`;
+  document.getElementById('upform').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(document.getElementById('upform'));
+    const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+myToken},body:fd});
+    const j = await r.json();
+    if(j.ok){ alert('上传成功'); loadFiles(); } else alert(j.error||'失败');
+  };
+  document.getElementById('saveProfile').onclick = async ()=>{
+    const avatar = document.getElementById('avatar').value.trim();
+    const bio = document.getElementById('bio').value.trim();
+    const r = await fetch('/api/profile/update',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({avatarUrl:avatar,bio})});
+    const j = await r.json();
+    if(j.ok){ alert('保存成功'); loadProfile(); } else alert(j.error||'失败');
+  };
+}
+
+function showFollowBtn(){
+  const target = user || myName;
+  if(!myToken || !user || user===myName) return;
+  document.getElementById('uploadBox').innerHTML = `<button id='followBtn'>关注Ta</button>
+    <button id='unfollowBtn' style='margin-left:.5rem'>取消关注</button>`;
+  document.getElementById('followBtn').onclick = async ()=>{
+    const r = await fetch('/api/follow/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
+    const j = await r.json(); if(j.ok){ alert('已关注'); loadFollows(); } else alert(j.error||'失败');
+  };
+  document.getElementById('unfollowBtn').onclick = async ()=>{
+    const r = await fetch('/api/follow/remove',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
+    const j = await r.json(); if(j.ok){ alert('已取消关注'); loadFollows(); } else alert(j.error||'失败');
+  };
+}
+
+(async function(){
+  await getMyName();
+  await loadProfile();
+  await loadFiles();
+  await loadFollows();
+  if(myToken){
+    if((user||myName)===myName) showSelfControls();
+    else showFollowBtn();
+  }
+})();
+</script>
+</body></html>

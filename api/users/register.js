@@ -1,0 +1,3 @@
+import { q } from '../_utils/db-node.js';
+import bcrypt from 'bcryptjs';
+export default async function handler(req,res){ if(req.method!=='POST') return res.status(405).end(); try{ const { username, password } = req.body || {}; if(!username || !password || password.length<6) return res.status(400).json({ ok:false, error:'用户名必填，密码至少6位' }); const hash = await bcrypt.hash(password,10); await q('insert into users(username, password_hash) values ($1,$2)', [username, hash]); res.json({ ok:true }); } catch(e){ if(String(e.message).includes('duplicate key')) return res.status(409).json({ ok:false, error:'用户名已存在' }); res.status(500).json({ ok:false, error:e.message }); } }

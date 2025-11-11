@@ -1,0 +1,31 @@
+{
+  "regions": [
+    "iad1"
+  ],
+  "routes": [
+    {
+      "src": "^/api/(.*)$",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "^/$",
+      "dest": "/public/index.html"
+    },
+    {
+      "src": "^/login$",
+      "dest": "/public/login.html"
+    },
+    {
+      "src": "^/register$",
+      "dest": "/public/register.html"
+    },
+    {
+      "src": "^/profile$",
+      "dest": "/public/profile.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}

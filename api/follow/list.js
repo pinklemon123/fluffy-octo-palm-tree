@@ -1,0 +1,2 @@
+import { q } from '../_utils/db-node.js';
+export default async function handler(req,res){ const username = String(req.query.user||'').trim(); if(!username) return res.status(400).json({ ok:false, error:'缺少 user' }); try{ const { rows } = await q('select following from follows_view where follower=$1',[username]); res.json({ ok:true, follows: rows }); } catch(e){ res.status(500).json({ ok:false, error:e.message }); } }

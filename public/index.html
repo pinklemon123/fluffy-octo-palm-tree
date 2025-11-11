@@ -1,0 +1,84 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/public/styles.css"/>
+<title>讨论区</title></head><body>
+<div class="row">
+  <h2 style="flex:1">公共讨论区</h2>
+  <div id="authBox">
+    <a href="/public/profile.html">我的</a>
+    <a href="/public/login.html" id="loginLink">登录</a>
+    <button id="logoutBtn" style="display:none">退出</button>
+  </div>
+</div>
+
+<div class="row" style="gap:.5rem;align-items:flex-start">
+  <textarea id="content" rows="3" style="flex:1" placeholder="说点什么..."></textarea>
+  <div style="display:flex;flex-direction:column;gap:.5rem">
+    <input type="file" id="fileInput" />
+    <button id="send">发送</button>
+  </div>
+</div>
+
+<div id="counter" style="margin:.5rem 0;color:#888"></div>
+<div id="list"></div>
+
+<script>
+const token = localStorage.getItem('token');
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+if(token){ loginLink.style.display='none'; logoutBtn.style.display='inline-block'; }
+logoutBtn.onclick = ()=>{ localStorage.removeItem('token'); location.reload(); };
+
+function escapeHtml(s){return (s||'').replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+
+async function load(){
+  const r = await fetch('/api/posts/list'); const j = await r.json();
+  const items = j.data||[];
+  document.getElementById('counter').textContent = `共 ${items.length} 条帖子`;
+  const el = document.getElementById('list'); el.innerHTML='';
+  items.forEach(p=>{
+    let preview = '';
+    if(p.file && p.file.mime){
+      if(p.file.mime.startsWith('image/')) preview = `<img src='${p.file.url||""}' style='max-width:160px;max-height:120px;border-radius:6px'>`;
+      else if(p.file.mime==='application/pdf') preview = `<a href='${p.file.url||""}' target='_blank'>PDF预览</a>`;
+      else if(p.file.mime==='text/html') preview = `<iframe src='${p.file.url||""}' style='width:260px;height:160px;border:1px solid #eee;border-radius:6px'></iframe>`;
+      else preview = `<a href='${p.file.url||""}' target='_blank'>下载附件</a>`;
+    }
+    const uname = (p.user&&p.user.username) || '匿名';
+    el.innerHTML += `<div class="post">
+      <div class="meta"><a href='/public/profile.html?user=${encodeURIComponent(uname)}'>${uname}</a> · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
+      <div>${escapeHtml(p.content||'')}</div>
+      ${preview}
+    </div>`;
+  });
+}
+
+async function uploadFileIfAny(){
+  const f = document.getElementById('fileInput').files[0];
+  if(!f) return null;
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'上传失败');
+  return j.file?.id || j.id || null;
+}
+
+document.getElementById('send').onclick = async () => {
+  if(!token) return alert('请先登录');
+  const contentEl = document.getElementById('content');
+  const content = contentEl.value.trim(); if(!content && !document.getElementById('fileInput').files[0]) return;
+  try{
+    const fileId = await uploadFileIfAny();
+    const r = await fetch('/api/posts/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({content, fileId})
+    });
+    const j = await r.json();
+    if(j.ok){ contentEl.value=''; document.getElementById('fileInput').value=''; load(); } else alert(j.error||'失败');
+  }catch(e){ alert(e.message||'失败'); }
+};
+
+load(); setInterval(load, 3000);
+</script>
+</body></html>

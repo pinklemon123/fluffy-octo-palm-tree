@@ -1,0 +1,2 @@
+import { jwtVerify } from 'jose';
+export async function requireUserEdge(req){ const a = req.headers.get('authorization') || ''; const t = a.startsWith('Bearer ') ? a.slice(7) : ''; if(!t) throw new Error('missing token'); const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dev'); const { payload } = await jwtVerify(t, secret); if(!payload?.username) throw new Error('invalid token'); return payload.username; }
