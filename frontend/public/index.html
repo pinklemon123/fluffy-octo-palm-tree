@@ -1,18 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#667eea" />
     <meta
       name="description"
-      content="A forum web application with file uploads and real-time chat"
+      content="FreeChat Forum – 与社区实时分享想法、文件与灵感"
     />
-    <title>Forum App</title>
+    <meta property="og:title" content="FreeChat Forum" />
+    <meta property="og:description" content="一个支持文件分享与实时交流的现代化社区。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="%PUBLIC_URL%/social-card.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+        background: radial-gradient(circle at top, rgba(102, 126, 234, 0.6), rgba(118, 75, 162, 0.8)), #0f172a;
+        color: #0f172a;
+      }
+
+      .no-js-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        color: #fff;
+      }
+
+      .no-js-card {
+        max-width: 480px;
+        background: rgba(15, 23, 42, 0.75);
+        border-radius: 24px;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 40px 80px rgba(15, 23, 42, 0.35);
+      }
+
+      .no-js-card h1 {
+        margin-bottom: 1rem;
+        font-size: 1.8rem;
+        font-weight: 600;
+      }
+
+      .no-js-card p {
+        line-height: 1.6;
+        opacity: 0.85;
+      }
+    </style>
+    <title>FreeChat Forum</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div class="no-js-wrapper">
+        <div class="no-js-card">
+          <h1>⚠️ 需要启用 JavaScript</h1>
+          <p>
+            FreeChat Forum 使用现代前端技术构建，请在浏览器设置中启用 JavaScript
+            后刷新页面。
+          </p>
+        </div>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

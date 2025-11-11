@@ -1,5 +1,7 @@
 // 极简 Node/Express 后端，直连 Neon，支持 JWT 登录
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -8,9 +10,37 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set. Please provide your Neon connection string.');
+}
+
+const pool = new Pool({
+  connectionString,
+  max: Number(process.env.PGPOOL_MAX || 10),
+  idleTimeoutMillis: Number(process.env.PGPOOL_IDLE_TIMEOUT || 30_000),
+  connectionTimeoutMillis: Number(process.env.PGPOOL_CONNECTION_TIMEOUT || 5_000),
+  ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle PostgreSQL client', err);
+});
+
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'forum-secret';
 
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : '*';
+
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
 
 function auth(req, res, next) {
@@ -89,7 +119,7 @@ app.get('/api/files/list', async (req, res) => {
 
 // 文件上传（本地存储，生产建议用云存储）
 app.post('/api/files/upload', auth, (req, res) => {
-  const form = formidable({ uploadDir: path.join(__dirname, 'uploads'), keepExtensions: true });
+  const form = formidable({ uploadDir: uploadsDir, keepExtensions: true });
   form.parse(req, async (err, fields, files) => {
     if (err || !files.file) return res.json({ ok: false, error: '上传失败' });
     const file = files.file;
@@ -135,6 +165,16 @@ app.post('/api/follow/remove', auth, async (req, res) => {
   if (!followerId || !followingId) return res.json({ ok: false, error: '用户不存在' });
   await pool.query('DELETE FROM follows WHERE follower_id=$1 AND following_id=$2', [followerId, followingId]);
   res.json({ ok: true });
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT current_database() AS db, current_user AS role');
+    res.json({ ok: true, database: r.rows[0] });
+  } catch (error) {
+    console.error('Health check failed', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,15 +1,17 @@
 {
   "name": "forum-backend",
-  "version": "1.0.0",
-  "description": "Backend for the forum project using Express and MongoDB",
-  "main": "api/index.js",
+  "version": "1.1.0",
+  "description": "Express backend for the forum project using Neon/PostgreSQL",
   "scripts": {
-    "start": "node api/index.js"
+    "start": "node server.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "mongodb": "^6.3.0"
+    "formidable": "^3.5.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
   }
 }
