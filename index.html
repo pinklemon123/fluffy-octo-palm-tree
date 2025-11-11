@@ -36,21 +36,21 @@ function escapeHtml(s){return (s||'').replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':
 // 检查数据库状态
 async function checkDatabase() {
   try {
-    const r = await fetch('/api/db-init');
+    const r = await fetch('/api/debug/db');
     const j = await r.json();
     const el = document.getElementById('dbStatus');
-    if(j.ready) {
-      el.innerHTML = '✅ 数据库已就绪';
+    if(j.ok) {
+      el.innerHTML = '✅ 数据库已连接';
       el.style.backgroundColor = '#d4edda';
       el.style.color = '#155724';
     } else {
-      el.innerHTML = `⚠️ ${j.message} - <a href="/api/db-check" target="_blank">检查详情</a>`;
-      el.style.backgroundColor = '#fff3cd';
-      el.style.color = '#856404';
+      el.innerHTML = `❌ 数据库连接失败: ${j.error?.message || '未知错误'}`;
+      el.style.backgroundColor = '#f8d7da';
+      el.style.color = '#721c24';
     }
   } catch(e) {
     const el = document.getElementById('dbStatus');
-    el.innerHTML = '❌ 数据库连接失败 - 请检查环境变量配置';
+    el.innerHTML = '❌ 数据库连接失败 - 网络错误';
     el.style.backgroundColor = '#f8d7da';
     el.style.color = '#721c24';
   }
