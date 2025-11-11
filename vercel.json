@@ -1,6 +1,5 @@
 {
   "functions": {
-    "api/**/*.js": { "runtime": "nodejs22.x" }
-  },
-  "regions": ["iad1"]
+    "api/**/*.js": { "runtime": "nodejs20.x" }
+  }
 }
