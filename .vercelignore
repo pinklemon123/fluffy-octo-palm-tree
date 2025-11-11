@@ -1,5 +1,4 @@
-backend/
 node_modules/
-public/
 .git/
-*.md
+*.log
+.env.local

@@ -10,7 +10,6 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "@neondatabase/serverless": "^0.10.4",
-    "@vercel/blob": "^0.23.4",
     "jose": "^5.3.0"
   },
   "engines": {

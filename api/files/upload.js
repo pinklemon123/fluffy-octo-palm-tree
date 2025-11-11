@@ -1,6 +1,12 @@
 import { requireUser } from '../_utils/auth-node.js';
 import { q } from '../_utils/db-node.js';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
@@ -9,23 +15,91 @@ export default async function handler(req, res) {
 
     const user = requireUser(req);
 
-    // 前端发送 JSON 格式的 base64 数据
-    const { filename, mime, data } = req.body || {};
-    
-    if (!filename || !data) {
+    // 检查 Content-Type
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.includes('multipart/form-data')) {
       return res.status(400).json({ 
         ok: false, 
-        error: '缺少文件数据',
-        received: Object.keys(req.body || {})
+        error: `Content-Type 非 multipart/form-data: ${contentType}` 
       });
     }
 
-    // 检查文件大小（base64编码后大约比原文件大33%）
-    const estimatedSize = (data.length * 3) / 4; // 估算原文件大小
-    if (estimatedSize > 5 * 1024 * 1024) { // 5MB 限制
+    // 读取原始请求体
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    
+    if (buffer.length === 0) {
+      return res.status(400).json({ ok: false, error: '请求体为空' });
+    }
+
+    // 检查文件大小限制（10MB）
+    if (buffer.length > 10 * 1024 * 1024) {
       return res.status(400).json({ 
         ok: false, 
-        error: '文件过大，请选择小于 5MB 的文件' 
+        error: '文件过大，请选择小于 10MB 的文件' 
+      });
+    }
+
+    // 解析 boundary
+    const boundary = contentType.split('boundary=')[1];
+    if (!boundary) {
+      return res.status(400).json({ ok: false, error: '无效的 multipart boundary' });
+    }
+
+    // 简化的 multipart 解析
+    const boundaryBytes = Buffer.from(`\r\n--${boundary}`);
+    const parts = buffer.split(boundaryBytes);
+    
+    let fileData = null;
+    let filename = `upload-${Date.now()}`;
+    let mimeType = 'application/octet-stream';
+
+    for (const part of parts) {
+      const partStr = part.toString();
+      
+      // 查找包含文件的部分
+      if (partStr.includes('name="file"') && partStr.includes('Content-Type:')) {
+        // 提取文件名
+        const filenameMatch = partStr.match(/filename="([^"]+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+        
+        // 提取 MIME 类型
+        const mimeMatch = partStr.match(/Content-Type:\s*([^\r\n]+)/i);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1].trim();
+        }
+        
+        // 找到文件数据（在双 CRLF 之后）
+        const headerEndIndex = part.indexOf(Buffer.from('\r\n\r\n'));
+        if (headerEndIndex !== -1) {
+          fileData = part.slice(headerEndIndex + 4);
+          // 移除末尾的 CRLF
+          if (fileData.length >= 2) {
+            const end = fileData.slice(-2);
+            if (end[0] === 0x0D && end[1] === 0x0A) {
+              fileData = fileData.slice(0, -2);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    if (!fileData || fileData.length === 0) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '未找到文件数据',
+        debug: { 
+          boundary, 
+          partsCount: parts.length,
+          bufferSize: buffer.length,
+          contentType 
+        }
       });
     }
 
@@ -37,19 +111,23 @@ export default async function handler(req, res) {
 
     const user_id = userRows.rows[0].id;
 
-    // 插入文件记录到数据库
+    // 将文件存储到数据库
     const result = await q(
-      'INSERT INTO files(user_id, filename, mime, data, url) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [user_id, filename, mime, data, null]
+      'INSERT INTO files(user_id, filename, mime, size, data) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [user_id, filename, mimeType, fileData.length, fileData]
     );
+
+    const fileId = result.rows[0].id;
 
     res.json({
       ok: true,
-      id: result.rows[0].id,
+      id: fileId,
+      url: `/api/files/${fileId}`,
       file: {
-        id: result.rows[0].id,
+        id: fileId,
         filename,
-        mime
+        mime: mimeType,
+        size: fileData.length
       }
     });
 

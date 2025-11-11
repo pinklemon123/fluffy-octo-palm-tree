@@ -39,25 +39,17 @@ async function loadFiles(){
   const files = j.files||[];
   document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + (files.length? files.map(f=>{
     let preview = '';
-    if(f.data) {
-      // Base64 数据存储在数据库中
-      if(f.mime.startsWith('image/')) {
-        preview = `<img src='data:${f.mime};base64,${f.data}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
-      } else if(f.mime === 'application/pdf') {
-        preview = `<a href='data:${f.mime};base64,${f.data}' target='_blank'>PDF预览</a>`;
-      } else if(f.mime === 'text/html') {
-        preview = `<div style='border:1px solid #eee;padding:4px;border-radius:6px;max-width:200px;'><em>HTML文件</em></div>`;
-      } else {
-        preview = `<a href='data:${f.mime};base64,${f.data}' download='${f.filename}'>下载</a>`;
-      }
-    } else if(f.url) {
-      // 兼容旧的 URL 存储方式
-      if(f.mime.startsWith('image/')) preview = `<img src='${f.url}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
-      else if(f.mime==='application/pdf') preview = `<a href='${f.url}' target='_blank'>PDF预览</a>`;
-      else if(f.mime==='text/html') preview = `<iframe src='${f.url}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
-      else preview = `<a href='${f.url}' target='_blank'>下载</a>`;
+    const fileUrl = `/api/files/${f.id}`;
+    if(f.mime.startsWith('image/')) {
+      preview = `<img src='${fileUrl}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
+    } else if(f.mime === 'application/pdf') {
+      preview = `<a href='${fileUrl}' target='_blank'>PDF预览</a>`;
+    } else if(f.mime === 'text/html') {
+      preview = `<iframe src='${fileUrl}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
+    } else {
+      preview = `<a href='${fileUrl}' download='${f.filename}'>下载</a>`;
     }
-    return `<div class='post'><b>${f.filename}</b> (${f.mime}) ${preview}</div>`;
+    return `<div class='post'><b>${f.filename}</b> (${f.mime}, ${(f.size/1024).toFixed(1)}KB) ${preview}</div>`;
   }).join('') : '<p>暂无文件</p>');
 }
 
@@ -87,32 +79,23 @@ function showSelfControls(){
     const file = fileInput.files[0];
     if(!file) { alert('请选择文件'); return; }
     
-    // 文件大小检查（5MB限制）
-    if(file.size > 5 * 1024 * 1024) {
-      alert('文件过大，请选择小于 5MB 的文件');
+    // 文件大小检查（10MB限制）
+    if(file.size > 10 * 1024 * 1024) {
+      alert('文件过大，请选择小于 10MB 的文件');
       return;
     }
 
     try {
-      // 转换为 Base64
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const fd = new FormData();
+      fd.append('file', file); // 字段名必须叫 'file'
+
+      const headers = {};
+      if (myToken) headers['Authorization'] = `Bearer ${myToken}`;
 
       const resp = await fetch('/api/files/upload', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + myToken
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          mime: file.type,
-          data: base64
-        })
+        headers: headers,
+        body: fd // 不要手动设置 Content-Type！
       });
 
       // 处理响应
