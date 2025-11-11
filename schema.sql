@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS files (
   user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   filename   text NOT NULL,
   mime       text NOT NULL,
-  url        text NOT NULL,
+  url        text,
+  data       text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id, created_at DESC);
@@ -54,14 +55,14 @@ SELECT
   p.content,
   p.created_at,
   jsonb_build_object('username', u.username) AS "user",
-  CASE WHEN f.id IS NOT NULL THEN jsonb_build_object('id', f.id, 'url', f.url, 'mime', f.mime, 'filename', f.filename) END AS "file"
+  CASE WHEN f.id IS NOT NULL THEN jsonb_build_object('id', f.id, 'url', f.url, 'mime', f.mime, 'filename', f.filename, 'data', f.data) END AS "file"
 FROM posts p
 JOIN users u ON u.id = p.user_id
 LEFT JOIN files f ON f.id = p.file_id
 ORDER BY p.created_at DESC;
 
 CREATE OR REPLACE VIEW user_files_view AS
-SELECT f.id, f.filename, f.mime, f.url, f.created_at, u.username
+SELECT f.id, f.filename, f.mime, f.url, f.data, f.created_at, u.username
 FROM files f JOIN users u ON u.id = f.user_id
 ORDER BY f.created_at DESC;
 

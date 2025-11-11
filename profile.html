@@ -39,10 +39,24 @@ async function loadFiles(){
   const files = j.files||[];
   document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + (files.length? files.map(f=>{
     let preview = '';
-    if(f.mime.startsWith('image/')) preview = `<img src='${f.url||""}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
-    else if(f.mime==='application/pdf') preview = `<a href='${f.url||""}' target='_blank'>PDF预览</a>`;
-    else if(f.mime==='text/html') preview = `<iframe src='${f.url||""}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
-    else preview = `<a href='${f.url||""}' target='_blank'>下载</a>`;
+    if(f.data) {
+      // Base64 数据存储在数据库中
+      if(f.mime.startsWith('image/')) {
+        preview = `<img src='data:${f.mime};base64,${f.data}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
+      } else if(f.mime === 'application/pdf') {
+        preview = `<a href='data:${f.mime};base64,${f.data}' target='_blank'>PDF预览</a>`;
+      } else if(f.mime === 'text/html') {
+        preview = `<div style='border:1px solid #eee;padding:4px;border-radius:6px;max-width:200px;'><em>HTML文件</em></div>`;
+      } else {
+        preview = `<a href='data:${f.mime};base64,${f.data}' download='${f.filename}'>下载</a>`;
+      }
+    } else if(f.url) {
+      // 兼容旧的 URL 存储方式
+      if(f.mime.startsWith('image/')) preview = `<img src='${f.url}' style='max-width:120px;max-height:80px;border-radius:6px'>`;
+      else if(f.mime==='application/pdf') preview = `<a href='${f.url}' target='_blank'>PDF预览</a>`;
+      else if(f.mime==='text/html') preview = `<iframe src='${f.url}' style='width:200px;height:120px;border:1px solid #eee;border-radius:6px'></iframe>`;
+      else preview = `<a href='${f.url}' target='_blank'>下载</a>`;
+    }
     return `<div class='post'><b>${f.filename}</b> (${f.mime}) ${preview}</div>`;
   }).join('') : '<p>暂无文件</p>');
 }
@@ -73,29 +87,51 @@ function showSelfControls(){
     const file = fileInput.files[0];
     if(!file) { alert('请选择文件'); return; }
     
-    const fd = new FormData();
-    fd.append('file', file);                   // 字段名必须叫 'file'
+    // 文件大小检查（5MB限制）
+    if(file.size > 5 * 1024 * 1024) {
+      alert('文件过大，请选择小于 5MB 的文件');
+      return;
+    }
 
-    // 只加 Authorization，不要自己设 Content-Type！
-    const h = new Headers();
-    if (myToken) h.set('Authorization', `Bearer ${myToken}`);
+    try {
+      // 转换为 Base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-    const resp = await fetch('/api/files/upload', {
-      method: 'POST',
-      headers: h,
-      body: fd
-    });
+      const resp = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + myToken
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          mime: file.type,
+          data: base64
+        })
+      });
 
-    // 400/500 时，把服务端返回的错误也弹出来，便于定位
-    let data;
-    const text = await resp.text();
-    try { data = JSON.parse(text); } catch { data = { ok:false, error:text }; }
+      // 处理响应
+      let data;
+      const text = await resp.text();
+      try { 
+        data = JSON.parse(text); 
+      } catch { 
+        data = { ok: false, error: text }; 
+      }
 
-    if (!resp.ok || !data.ok) {
-      alert(data.error || `上传失败(${resp.status})`);
-    } else {
-      alert('上传成功'); 
-      loadFiles();
+      if (!resp.ok || !data.ok) {
+        alert(data.error || `上传失败(${resp.status})`);
+      } else {
+        alert('上传成功'); 
+        loadFiles();
+      }
+    } catch (error) {
+      alert('上传失败: ' + error.message);
     }
   };
   document.getElementById('saveProfile').onclick = async ()=>{
