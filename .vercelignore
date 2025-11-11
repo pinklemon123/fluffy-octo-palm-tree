@@ -1,2 +1,5 @@
 backend/
 node_modules/
+public/
+.git/
+*.md
