@@ -24,8 +24,8 @@ export default async function handler(req, res) {
       return res.status(401).json({ ok: false, error: '用户不存在或密码错误' });
     }
 
-    // JWT payload 包含 userId 和 username
-    const token = signToken({ userId: user.id, username: user.username });
+    // JWT payload 包含 sub (userId) 和 username，符合标准
+    const token = signToken({ sub: user.id, username: user.username });
     
     res.json({ 
       ok: true, 
