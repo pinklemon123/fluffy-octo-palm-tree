@@ -1,95 +1,321 @@
-<!doctype html><html><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" href="/styles.css"/>
-<title>个人空间</title></head><body>
-<div id="profile"></div>
-<div id="uploadBox"></div>
-<div id="files"></div>
-<div id="follows"></div>
-<script>
-function getQuery(name){
-  const m = location.search.match(new RegExp('[?&]'+name+'=([^&]*)')); return m?decodeURIComponent(m[1]):'';
-}
-const user = getQuery('user');
-const myToken = localStorage.getItem('token');
-let myName = '';
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>个人主页 · FreeChat Forum</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page">
+    <header class="top-bar">
+      <div class="top-bar__brand">
+        <h1>个人空间</h1>
+        <p>浏览成员资料、关注好友或管理自己的文件与简介。</p>
+      </div>
+      <nav>
+        <a href="/">讨论区</a>
+        <a href="/profile.html">我的主页</a>
+        <a href="/login.html">登录</a>
+        <a href="/register.html">注册</a>
+      </nav>
+    </header>
 
-async function loadProfile(){
-  if(!user){ document.getElementById('profile').innerHTML = '<p>未指定用户</p>'; return; }
-  const r = await fetch('/api/profile/view?user='+encodeURIComponent(user));
-  const j = await r.json();
-  if(!j.ok){ document.getElementById('profile').innerHTML = '<p>用户不存在</p>'; return; }
-  const p = j.profile;
-  document.getElementById('profile').innerHTML = `<div class='profile-card'>
-    <img class='profile-avatar' src='${p.avatarUrl||"https://via.placeholder.com/80?text=👤"}' alt='头像'/>
-    <h3>${p.username}</h3>
-    <div class='profile-bio'>${p.bio||"这个人很低调，还没有写介绍。"}</div>
-    </div>`;
-}
+    <main>
+      <section class="panel">
+        <div id="profile"></div>
+        <div id="profileActions" class="profile-actions"></div>
+        <div id="uploadBox"></div>
+        <p class="notice" id="profileNotice"></p>
+      </section>
 
-async function loadFiles(){
-  const r = await fetch('/api/files/list?user='+encodeURIComponent(user));
-  const j = await r.json();
-  if(!j.ok){ document.getElementById('files').innerHTML = '<p>无文件</p>'; return; }
-  const files = j.files||[];
-  document.getElementById('files').innerHTML = `<h4>文件列表</h4>` + files.map(f=>{
-    let preview = '';
-    if(f.mime.startsWith('image/')) preview = `<img src='${f.url||""}' style='max-width:120px;max-height:80px'>`;
-    else if(f.mime==='application/pdf') preview = `<a href='${f.url||""}' target='_blank'>PDF预览</a>`;
-    else if(f.mime==='text/html') preview = `<iframe src='${f.url||""}' style='width:200px;height:120px'></iframe>`;
-    else preview = `<a href='${f.url||""}' target='_blank'>下载</a>`;
-    return `<div class='post'><b>${f.filename}</b> (${f.mime}) ${preview}</div>`;
-  }).join('');
-}
+      <section class="panel">
+        <h3>文件库</h3>
+        <div id="files" class="file-list"></div>
+      </section>
 
-async function loadFollows(){
-  const r = await fetch('/api/follow/list?user='+encodeURIComponent(user));
-  const j = await r.json();
-  const follows = j.follows||[];
-  document.getElementById('follows').innerHTML = `<h4>关注列表</h4>` + follows.map(f=>`<a href='/profile.html?user=${encodeURIComponent(f.following)}'>${f.following}</a>`).join(', ');
-}
+      <section class="panel">
+        <h3>关注列表</h3>
+        <div id="follows" class="follow-list"></div>
+      </section>
+    </main>
 
-function showUpload(){
-  if(!myToken) return;
-  if(user!==myName) return;
-  document.getElementById('uploadBox').innerHTML = `<h4>上传文件</h4>
-    <form id='upform'><input type='file' name='file'><button type='submit'>上传</button></form>`;
-  document.getElementById('upform').onsubmit = async e => {
-    e.preventDefault();
-    const fd = new FormData(document.getElementById('upform'));
-    const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+myToken},body:fd});
-    const j = await r.json();
-    if(j.ok){ alert('上传成功'); loadFiles(); } else alert(j.error||'失败');
-  };
-}
+    <footer>FreeChat Forum · Neon + Vercel 驱动</footer>
 
-function showFollow(){
-  if(!myToken) return;
-  if(user===myName) return;
-  document.getElementById('uploadBox').innerHTML = `<button id='followBtn'>关注Ta</button>`;
-  document.getElementById('followBtn').onclick = async ()=>{
-    const r = await fetch('/api/follow/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myToken},body:JSON.stringify({target:user})});
-    const j = await r.json();
-    if(j.ok){ alert('已关注'); loadFollows(); } else alert(j.error||'失败');
-  };
-}
+    <script>
+      const profileEl = document.getElementById('profile');
+      const actionsEl = document.getElementById('profileActions');
+      const uploadBoxEl = document.getElementById('uploadBox');
+      const filesEl = document.getElementById('files');
+      const followsEl = document.getElementById('follows');
+      const noticeEl = document.getElementById('profileNotice');
+      const params = new URLSearchParams(window.location.search);
+      const user = (params.get('user') || '').trim();
+      const token = localStorage.getItem('token');
+      let myName = '';
+      let profileData = null;
 
-async function getMyName(){
-  if(!myToken) return;
-  // 取当前登录用户名
-  try{
-    const payload = JSON.parse(atob(myToken.split('.')[1]));
-    myName = payload.username;
-  }catch{}
-}
+      function setNotice(msg) {
+        noticeEl.textContent = msg || '';
+      }
 
-(async function(){
-  await getMyName();
-  await loadProfile();
-  await loadFiles();
-  await loadFollows();
-  if(myToken){
-    if(user===myName) showUpload();
-    else showFollow();
-  }
-})();
+      function decodeMyName() {
+        if (!token) return;
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload?.username) {
+            myName = payload.username;
+          }
+        } catch (e) {
+          console.warn('无法解析 token', e);
+        }
+      }
+
+      async function loadProfile() {
+        if (!user) {
+          profileEl.innerHTML = '<p class="notice">未指定用户。</p>';
+          return;
+        }
+        try {
+          const r = await fetch('/api/profile/view?user=' + encodeURIComponent(user));
+          const j = await r.json();
+          if (!j.ok) {
+            profileEl.innerHTML = '<p class="notice">用户不存在或已删除。</p>';
+            return;
+          }
+          profileData = j.profile;
+          renderProfile();
+        } catch (error) {
+          console.error(error);
+          profileEl.innerHTML = '<p class="notice">加载资料失败。</p>';
+        }
+      }
+
+      function renderProfile() {
+        const avatar = profileData.avatarUrl || 'https://via.placeholder.com/120?text=👤';
+        const rawBio = profileData.bio || '';
+        const bio = rawBio || '这个人很低调，还没有写介绍。';
+        const usernameHtml = escapeHtml(profileData.username);
+        const avatarHtml = escapeHtml(avatar);
+        profileEl.innerHTML = `
+          <div class="profile-header">
+            <img class="profile-avatar" src="${avatarHtml}" alt="头像" />
+            <div>
+              <h2>${usernameHtml}</h2>
+              <p class="profile-bio">${escapeHtml(bio)}</p>
+            </div>
+          </div>
+        `;
+        actionsEl.innerHTML = '';
+        uploadBoxEl.innerHTML = '';
+        setNotice('');
+        const isMe = myName && profileData.username === myName;
+        if (isMe) {
+          renderEditor(avatar, rawBio);
+          renderUpload();
+        } else if (token) {
+          renderFollowButton();
+        }
+      }
+
+      function renderEditor(avatar, bio) {
+        actionsEl.innerHTML = `
+          <div class="profile-editor">
+            <label for="avatarInput">头像链接</label>
+            <input id="avatarInput" type="text" value="${escapeHtml(avatar)}" placeholder="https://..." />
+            <label for="bioInput">个人简介</label>
+            <textarea id="bioInput" rows="4">${bio ? escapeHtml(bio) : ''}</textarea>
+            <button id="saveProfile">保存资料</button>
+          </div>
+        `;
+        document.getElementById('saveProfile').addEventListener('click', async () => {
+          if (!token) {
+            setNotice('请先登录');
+            return;
+          }
+          const avatarUrl = document.getElementById('avatarInput').value.trim();
+          const bioText = document.getElementById('bioInput').value.trim();
+          setNotice('保存中...');
+          try {
+            const r = await fetch('/api/profile/update', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token
+              },
+              body: JSON.stringify({ avatarUrl, bio: bioText })
+            });
+            const j = await r.json();
+            if (j.ok) {
+              setNotice('资料已更新');
+              profileData.avatarUrl = avatarUrl;
+              profileData.bio = bioText;
+              renderProfile();
+            } else {
+              setNotice(j.error || '保存失败');
+            }
+          } catch (error) {
+            console.error(error);
+            setNotice('保存失败，请稍后重试');
+          }
+        });
+      }
+
+      function renderUpload() {
+        uploadBoxEl.innerHTML = `
+          <div class="profile-editor">
+            <label for="fileInput">上传文件</label>
+            <input id="fileInput" type="file" />
+            <button id="uploadBtn">上传文件</button>
+          </div>
+        `;
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
+          const fileInput = document.getElementById('fileInput');
+          if (!fileInput.files.length) {
+            setNotice('请选择要上传的文件');
+            return;
+          }
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          setNotice('上传中...');
+          try {
+            const r = await fetch('/api/files/upload', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + token },
+              body: formData
+            });
+            const j = await r.json();
+            if (j.ok) {
+              setNotice('上传成功');
+              fileInput.value = '';
+              loadFiles();
+            } else {
+              setNotice(j.error || '上传失败');
+            }
+          } catch (error) {
+            console.error(error);
+            setNotice('上传失败，请稍后重试');
+          }
+        });
+      }
+
+      function renderFollowButton() {
+        actionsEl.innerHTML = `
+          <div class="profile-actions">
+            <button id="followBtn">关注 Ta</button>
+          </div>
+        `;
+        document.getElementById('followBtn').addEventListener('click', async () => {
+          setNotice('正在关注...');
+          try {
+            const r = await fetch('/api/follow/add', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token
+              },
+              body: JSON.stringify({ target: profileData.username })
+            });
+            const j = await r.json();
+            if (j.ok) {
+              setNotice('已关注');
+              loadFollows();
+            } else {
+              setNotice(j.error || '关注失败');
+            }
+          } catch (error) {
+            console.error(error);
+            setNotice('关注失败，请稍后重试');
+          }
+        });
+      }
+
+      async function loadFiles() {
+        filesEl.innerHTML = '';
+        if (!user) {
+          filesEl.innerHTML = '<p class="notice">未指定用户。</p>';
+          return;
+        }
+        try {
+          const r = await fetch('/api/files/list?user=' + encodeURIComponent(user));
+          const j = await r.json();
+          if (!j.ok) {
+            filesEl.innerHTML = '<p class="notice">暂无文件。</p>';
+            return;
+          }
+          if (!j.files?.length) {
+            filesEl.innerHTML = '<p style="color:var(--text-muted);">这个用户还没有上传文件。</p>';
+            return;
+          }
+          j.files.forEach((f) => {
+            const card = document.createElement('div');
+            card.className = 'file-card';
+            const uploadedAt = f.uploadedAt ? new Date(f.uploadedAt).toLocaleString() : '';
+            card.innerHTML = `
+              <div class="file-card__info">
+                <strong>${escapeHtml(f.filename || '未命名')}</strong>
+                <span>${escapeHtml(f.mime || '')}</span>
+                <span style="color:var(--text-muted);font-size:0.85rem;">${uploadedAt}</span>
+              </div>
+            `;
+            if (f.url) {
+              const link = document.createElement('a');
+              link.href = f.url;
+              link.target = '_blank';
+              link.rel = 'noreferrer';
+              link.textContent = '查看';
+              card.appendChild(link);
+            }
+            filesEl.appendChild(card);
+          });
+        } catch (error) {
+          console.error(error);
+          filesEl.innerHTML = '<p class="notice">加载文件失败。</p>';
+        }
+      }
+
+      async function loadFollows() {
+        followsEl.innerHTML = '';
+        if (!user) {
+          followsEl.innerHTML = '<p class="notice">未指定用户。</p>';
+          return;
+        }
+        try {
+          const r = await fetch('/api/follow/list?user=' + encodeURIComponent(user));
+          const j = await r.json();
+          if (!j.ok || !j.follows) {
+            followsEl.innerHTML = '<p style="color:var(--text-muted);">暂无关注。</p>';
+            return;
+          }
+          if (j.follows.length === 0) {
+            followsEl.innerHTML = '<p style="color:var(--text-muted);">还没有关注任何人。</p>';
+            return;
+          }
+          j.follows.forEach((item) => {
+            const link = document.createElement('a');
+            link.href = '/profile.html?user=' + encodeURIComponent(item.following);
+            link.textContent = item.following;
+            followsEl.appendChild(link);
+          });
+        } catch (error) {
+          console.error(error);
+          followsEl.innerHTML = '<p class="notice">加载关注列表失败。</p>';
+        }
+      }
+
+      function escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, (m) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[m]);
+      }
+
+      decodeMyName();
+      loadProfile();
+      loadFiles();
+      loadFollows();
+    </script>
+  </body>
+</html>

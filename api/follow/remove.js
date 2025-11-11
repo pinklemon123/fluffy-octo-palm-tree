@@ -1,19 +1,29 @@
-import { q } from '../_utils/db-node.js';
-import { requireUser } from '../_utils/auth-node.js';
+const { query } = require('../_lib/db');
+const { requireUser } = require('../_lib/auth');
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
     const me = requireUser(req);
-    const { target } = req.body || {};
-    const { rows: a } = await q('select id from users where username=$1', [me]);
-    const { rows: b } = await q('select id from users where username=$1', [target]);
-    if (!a[0] || !b[0]) return res.status(404).json({ ok: false, error: '用户不存在' });
-
-    await q('delete from follows where follower_id=$1 and following_id=$2', [a[0].id, b[0].id]);
+    const { target = '' } = req.body || {};
+    if (!target.trim()) {
+      res.status(400).json({ ok: false, error: '目标无效' });
+      return;
+    }
+    const { rows } = await query('select id from users where username=$1', [target.trim()]);
+    const targetUser = rows[0];
+    if (!targetUser) {
+      res.status(404).json({ ok: false, error: '用户不存在' });
+      return;
+    }
+    await query('delete from follows where follower_id=$1 and following_id=$2', [me.id, targetUser.id]);
     res.json({ ok: true });
-  } catch (e) {
-    const code = e.message === 'missing token' ? 401 : 500;
-    res.status(code).json({ ok: false, error: e.message });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    console.error('follow remove error', error);
+    res.status(status).json({ ok: false, error: status === 401 ? error.message : '服务器错误' });
   }
-}
+};

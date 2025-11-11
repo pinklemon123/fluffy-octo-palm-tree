@@ -1,10 +1,11 @@
-import { requireUser } from './_utils/auth-node.js';
+const { requireUser } = require('./_lib/auth');
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   try {
-    const username = requireUser(req);
-    res.json({ ok: true, user: username });
-  } catch (e) {
-    res.status(401).json({ ok: false, error: e.message });
+    const user = requireUser(req);
+    res.json({ ok: true, user: user.username });
+  } catch (error) {
+    const status = error.statusCode || 401;
+    res.status(status).json({ ok: false, error: status === 401 ? error.message : '服务器错误' });
   }
-}
+};

@@ -1,16 +1,28 @@
-const { getDB } = require('../_lib/mongo');
+const { query } = require('../_lib/db');
 
 module.exports = async (req, res) => {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'GET') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
-    const username = req.query.user;
-    if (!username) return res.status(400).json({ error: 'Missing user' });
-    const db = await getDB();
-    const user = await db.collection('users').findOne({ username });
-    if (!user) return res.json({ ok: false });
-    res.json({ ok: true, profile: { username: user.username, avatarUrl: user.avatarUrl, bio: user.bio } });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'server error' });
+    const username = (req.query.user || '').trim();
+    if (!username) {
+      res.status(400).json({ ok: false, error: 'Missing user' });
+      return;
+    }
+    const { rows } = await query(
+      'select username, coalesce(avatar_url, \'\') as "avatarUrl", coalesce(bio, \'\') as bio from users where username=$1',
+      [username]
+    );
+    const profile = rows[0];
+    if (!profile) {
+      res.json({ ok: false, error: '用户不存在' });
+      return;
+    }
+    res.json({ ok: true, profile });
+  } catch (error) {
+    console.error('profile view error', error);
+    res.status(500).json({ ok: false, error: '服务器错误' });
   }
 };

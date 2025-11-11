@@ -1,20 +1,87 @@
-<!doctype html><html><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" href="/styles.css"/>
-<title>注册</title></head><body>
-<h2>注册</h2>
-<div>
-  <input id="username" placeholder="用户名"/>
-  <input id="password" type="password" placeholder="密码"/>
-  <button id="btn">注册</button>
-</div>
-<p><a href="/login.html">已有账号？去登录</a></p>
-<script>
-document.getElementById('btn').onclick = async () => {
-  const username = username.value.trim(), password = password.value.trim();
-  const r = await fetch('/api/users/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-  const j = await r.json();
-  if(j.ok){ alert('注册成功'); location.href='/login.html'; } else { alert(j.error||'失败'); }
-};
-</script>
-</body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>注册 · FreeChat Forum</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page">
+    <header class="top-bar">
+      <div class="top-bar__brand">
+        <h1>创建你的论坛账号 ✨</h1>
+        <p>仅需用户名和密码即可加入社区，开始分享与探索。</p>
+      </div>
+      <nav>
+        <a href="/">讨论区</a>
+        <a href="/profile.html">我的主页</a>
+        <a href="/login.html">登录</a>
+        <a href="/register.html">注册</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>快速注册</h2>
+        <div class="form-grid">
+          <label for="username">用户名</label>
+          <input id="username" type="text" placeholder="请输入用户名" autocomplete="username" />
+
+          <label for="password">密码</label>
+          <input id="password" type="password" placeholder="至少 6 位密码" autocomplete="new-password" />
+        </div>
+        <button id="btn">创建账号</button>
+        <p class="notice" id="registerNotice"></p>
+        <p style="margin-top:1.25rem;color:var(--text-muted);">
+          已有账号？<a href="/login.html">立即登录</a>
+        </p>
+      </section>
+    </main>
+
+    <footer>FreeChat Forum · Neon + Vercel 驱动</footer>
+
+    <script>
+      const btn = document.getElementById('btn');
+      const usernameEl = document.getElementById('username');
+      const passwordEl = document.getElementById('password');
+      const noticeEl = document.getElementById('registerNotice');
+
+      function setNotice(msg) {
+        noticeEl.textContent = msg || '';
+      }
+
+      btn.addEventListener('click', async () => {
+        const username = usernameEl.value.trim();
+        const password = passwordEl.value.trim();
+        if (!username || !password) {
+          setNotice('请输入用户名和密码');
+          return;
+        }
+        if (password.length < 6) {
+          setNotice('密码至少 6 位');
+          return;
+        }
+        setNotice('注册中...');
+        try {
+          const r = await fetch('/api/users/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+          const j = await r.json();
+          if (j.ok) {
+            setNotice('注册成功，去登录试试吧！');
+            setTimeout(() => {
+              window.location.href = '/login.html';
+            }, 800);
+          } else {
+            setNotice(j.error || '注册失败');
+          }
+        } catch (error) {
+          console.error(error);
+          setNotice('注册失败，请稍后重试');
+        }
+      });
+    </script>
+  </body>
+</html>

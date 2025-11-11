@@ -1,45 +1,158 @@
-<!doctype html><html><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" href="/styles.css"/>
-<title>讨论区</title></head><body>
-<div class="row">
-  <h2 style="flex:1">公共讨论区</h2>
-  <a href="/profile.html">我的</a>
-  <a href="/login.html">登录</a>
-</div>
-<div class="row">
-  <textarea id="content" rows="3" style="flex:1" placeholder="说点什么..."></textarea>
-  <button id="send">发送</button>
-</div>
-<div id="list"></div>
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FreeChat Forum · 公共讨论区</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page">
+    <header class="top-bar">
+      <div class="top-bar__brand">
+        <h1>🌟 FreeChat Forum</h1>
+        <p>与社区分享你的灵感、文件与故事。登录后即可发帖、关注好友并管理个人资料。</p>
+      </div>
+      <nav>
+        <a href="/">讨论区</a>
+        <a href="/profile.html">我的主页</a>
+        <a href="/login.html">登录</a>
+        <a href="/register.html">注册</a>
+      </nav>
+    </header>
 
-<script>
-async function load(){
-  const r = await fetch('/api/posts/list'); const j = await r.json();
-  const el = document.getElementById('list'); el.innerHTML='';
-  (j.data||[]).forEach(p=>{
-    let preview = '';
-    if(p.file && p.file.mime){
-      if(p.file.mime.startsWith('image/')) preview = `<img src='${p.file.url||""}' style='max-width:120px;max-height:80px'>`;
-      else if(p.file.mime==='application/pdf') preview = `<a href='${p.file.url||""}' target='_blank'>PDF预览</a>`;
-      else if(p.file.mime==='text/html') preview = `<iframe src='${p.file.url||""}' style='width:200px;height:120px'></iframe>`;
-      else preview = `<a href='${p.file.url||""}' target='_blank'>下载</a>`;
-    }
-    el.innerHTML += `<div class="post">
-      <div class="meta"><a href='/profile.html?user=${encodeURIComponent(p.user?.username||'')}' style='color:#3498db;text-decoration:underline;'>${p.user?.username||'匿名'}</a> · ${new Date(p.createdAt).toLocaleString()}</div>
-      <div>${escapeHtml(p.content)}</div>
-      ${preview}
-    </div>`;
-  });
-}
-function escapeHtml(s){return s.replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
-document.getElementById('send').onclick = async () => {
-  const token = localStorage.getItem('token'); if(!token) return alert('请先登录');
-  const content = contentEl.value.trim(); if(!content) return;
-  const r = await fetch('/api/posts/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({content})});
-  const j = await r.json(); if(j.ok){ contentEl.value=''; load(); } else alert(j.error||'失败');
-};
-const contentEl = document.getElementById('content');
-load(); setInterval(load, 3000);
-</script>
-</body></html>
+    <main>
+      <section class="panel">
+        <h2>发布新动态</h2>
+        <p class="panel__meta" style="color: var(--text-muted);">登录后可立即分享文本、图片或链接。每 3 秒自动刷新最新列表。</p>
+        <textarea id="content" placeholder="这一刻你想说点什么？"></textarea>
+        <button id="send">🚀 发布</button>
+        <p class="notice" id="postNotice"></p>
+      </section>
+
+      <section class="panel">
+        <h3>最新讨论</h3>
+        <div id="list" class="post-list"></div>
+      </section>
+    </main>
+
+    <footer>FreeChat Forum · Neon + Vercel 驱动</footer>
+
+    <script>
+      const listEl = document.getElementById('list');
+      const contentEl = document.getElementById('content');
+      const sendBtn = document.getElementById('send');
+      const noticeEl = document.getElementById('postNotice');
+
+      function setNotice(message) {
+        noticeEl.textContent = message || '';
+      }
+
+      async function load() {
+        try {
+          const r = await fetch('/api/posts/list');
+          const j = await r.json();
+          listEl.innerHTML = '';
+          if (!j.ok || !Array.isArray(j.data)) {
+            setNotice(j.error || '无法获取帖子列表');
+            return;
+          }
+          if (j.data.length === 0) {
+            listEl.innerHTML = '<p style="color: var(--text-muted); text-align:center;">这里还没有内容，来做第一个发言者吧！</p>';
+            return;
+          }
+          j.data.forEach((p) => {
+            const card = document.createElement('div');
+            card.className = 'post-card';
+            const username = p.user?.username || '匿名';
+            const created = p.createdAt ? new Date(p.createdAt).toLocaleString() : '';
+            const profileLink = `/profile.html?user=${encodeURIComponent(username)}`;
+            card.innerHTML = `
+              <div class="post-card__meta">
+                <a href="${profileLink}">${username}</a>
+                <span>· ${created}</span>
+              </div>
+              <div>${escapeHtml(p.content || '')}</div>
+            `;
+            const preview = renderPreview(p.file);
+            if (preview) {
+              const previewWrapper = document.createElement('div');
+              previewWrapper.className = 'post-card__preview';
+              previewWrapper.innerHTML = preview;
+              card.appendChild(previewWrapper);
+            }
+            listEl.appendChild(card);
+          });
+        } catch (error) {
+          console.error(error);
+          setNotice('加载帖子时出错');
+        }
+      }
+
+      function renderPreview(file) {
+        if (!file || !file.mime) return '';
+        const url = file.url || '';
+        if (file.mime.startsWith('image/')) {
+          return `<img src="${url}" alt="附件预览" />`;
+        }
+        if (file.mime === 'application/pdf') {
+          return `<a href="${url}" target="_blank" rel="noreferrer">📄 打开 PDF</a>`;
+        }
+        if (file.mime === 'text/html') {
+          return `<iframe src="${url}" title="HTML 预览" style="width:100%;min-height:200px;"></iframe>`;
+        }
+        if (url) {
+          return `<a href="${url}" target="_blank" rel="noreferrer">📎 下载附件</a>`;
+        }
+        return '';
+      }
+
+      function escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, (m) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[m]);
+      }
+
+      sendBtn.addEventListener('click', async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setNotice('请先登录后再发帖。');
+          return;
+        }
+        const content = contentEl.value.trim();
+        if (!content) {
+          setNotice('内容不能为空。');
+          return;
+        }
+        setNotice('发送中...');
+        try {
+          const r = await fetch('/api/posts/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + token
+            },
+            body: JSON.stringify({ content })
+          });
+          const j = await r.json();
+          if (j.ok) {
+            contentEl.value = '';
+            setNotice('发布成功！');
+            load();
+          } else {
+            setNotice(j.error || '发布失败');
+          }
+        } catch (error) {
+          console.error(error);
+          setNotice('发布失败，请稍后再试');
+        }
+      });
+
+      load();
+      setInterval(load, 3000);
+    </script>
+  </body>
+</html>

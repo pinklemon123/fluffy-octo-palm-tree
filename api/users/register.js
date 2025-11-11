@@ -1,29 +1,29 @@
-const { getDB } = require('../_lib/mongo');
 const bcrypt = require('bcryptjs');
+const { query } = require('../_lib/db');
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
-    const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ error: 'username & password required' });
-    const db = await getDB();
-    const users = db.collection('users');
-
-    const exists = await users.findOne({ username });
-    if (exists) return res.status(409).json({ error: 'Username taken' });
-
+    const { username = '', password = '' } = req.body || {};
+    if (!username.trim() || password.length < 6) {
+      res.status(400).json({ ok: false, error: '用户名必填，密码至少 6 位' });
+      return;
+    }
     const hash = await bcrypt.hash(password, 10);
-    const user = {
-      username,
-      password: hash,
-      avatarUrl: '',
-      bio: '',
-      createdAt: new Date()
-    };
-    await users.insertOne(user);
+    await query(
+      'insert into users (username, password_hash) values ($1, $2)',
+      [username.trim(), hash]
+    );
     res.json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'server error' });
+  } catch (error) {
+    if (error.code === '23505') {
+      res.status(409).json({ ok: false, error: '用户名已存在' });
+      return;
+    }
+    console.error('register error', error);
+    res.status(500).json({ ok: false, error: '服务器错误' });
   }
 };

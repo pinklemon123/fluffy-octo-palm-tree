@@ -1,30 +1,26 @@
-const { getDB } = require('../_lib/mongo');
-const jwt = require('jsonwebtoken');
+const { query } = require('../_lib/db');
+const { requireUser } = require('../_lib/auth');
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
-    const { content } = req.body || {};
-    if (!content || typeof content !== 'string') return res.status(400).json({ error: 'content required' });
-
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'no token' });
-
-    let payload;
-    try { payload = jwt.verify(token, process.env.JWT_SECRET); } 
-    catch { return res.status(401).json({ error: 'bad token' }); }
-
-    const db = await getDB();
-    const post = {
-      user: { uid: payload.uid, username: payload.username },
-      content,
-      createdAt: new Date()
-    };
-    await db.collection('posts').insertOne(post);
+    const user = requireUser(req);
+    const { content = '', fileId = null } = req.body || {};
+    if (!content.trim() && !fileId) {
+      res.status(400).json({ ok: false, error: '内容或附件必填' });
+      return;
+    }
+    await query(
+      'insert into posts (user_id, content, file_id) values ($1, $2, $3)',
+      [user.id, content.trim(), fileId]
+    );
     res.json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'server error' });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    console.error('create post error', error);
+    res.status(status).json({ ok: false, error: status === 401 ? error.message : '服务器错误' });
   }
 };

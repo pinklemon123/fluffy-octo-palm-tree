@@ -1,26 +1,22 @@
-const { getDB } = require('../_lib/mongo');
-const jwt = require('jsonwebtoken');
+const { query } = require('../_lib/db');
+const { requireUser } = require('../_lib/auth');
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
+    const user = requireUser(req);
     const { avatarUrl = '', bio = '' } = req.body || {};
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'no token' });
-
-    let payload;
-    try { payload = jwt.verify(token, process.env.JWT_SECRET); } 
-    catch { return res.status(401).json({ error: 'bad token' }); }
-
-    const db = await getDB();
-    await db.collection('users').updateOne(
-      { username: payload.username },
-      { $set: { avatarUrl, bio } }
+    await query(
+      'update users set avatar_url=$1, bio=$2 where id=$3',
+      [avatarUrl, bio, user.id]
     );
     res.json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'server error' });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    console.error('profile update error', error);
+    res.status(status).json({ ok: false, error: status === 401 ? error.message : '服务器错误' });
   }
 };

@@ -1,38 +1,46 @@
-const { getDB } = require('../_lib/mongo');
-const jwt = require('jsonwebtoken');
 const formidable = require('formidable');
 const fs = require('fs');
-const path = require('path');
+const { query } = require('../_lib/db');
+const { requireUser } = require('../_lib/auth');
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    return;
+  }
   try {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'no token' });
-    let payload;
-    try { payload = jwt.verify(token, process.env.JWT_SECRET); } 
-    catch { return res.status(401).json({ error: 'bad token' }); }
-
+    const user = requireUser(req);
     const form = formidable({ multiples: false });
     form.parse(req, async (err, fields, files) => {
-      if (err) return res.status(400).json({ error: 'upload error' });
-      const file = files.file;
-      if (!file) return res.status(400).json({ error: 'no file' });
-      // 这里只存元数据，实际可接入外部存储
-      const db = await getDB();
-      const doc = {
-        user: payload.username,
-        filename: file.originalFilename,
-        mime: file.mimetype,
-        url: '', // 可存外链或Base64，演示用
-        uploadedAt: new Date()
-      };
-      await db.collection('files').insertOne(doc);
-      res.json({ ok: true });
+      try {
+        if (err) {
+          console.error('formidable error', err);
+          res.status(400).json({ ok: false, error: '上传失败' });
+          return;
+        }
+        const file = files.file;
+        if (!file) {
+          res.status(400).json({ ok: false, error: '请选择文件' });
+          return;
+        }
+        const filename = file.originalFilename || file.newFilename || '未命名文件';
+        const mime = file.mimetype || 'application/octet-stream';
+        const { rows } = await query(
+          'insert into files (user_id, filename, mime, url) values ($1, $2, $3, $4) returning id, filename, mime, url',
+          [user.id, filename, mime, '']
+        );
+        if (file.filepath) {
+          fs.unlink(file.filepath, () => {});
+        }
+        res.json({ ok: true, file: rows[0] });
+      } catch (innerError) {
+        const status = innerError.statusCode || 500;
+        console.error('upload error', innerError);
+        res.status(status).json({ ok: false, error: status === 401 ? innerError.message : '服务器错误' });
+      }
     });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'server error' });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    res.status(status).json({ ok: false, error: status === 401 ? error.message : '服务器错误' });
   }
 };
