@@ -1,3 +1,26 @@
 import { q } from '../_utils/db-node.js';
-import { requireUser } from '../_utils/auth-node.js';
-export default async function handler(req,res){ if(req.method!=='POST') return res.status(405).end(); try{ const username = requireUser(req); const { content, fileId } = req.body || {}; if(!content && !fileId) return res.status(400).json({ ok:false, error:'内容与附件不能同时为空' }); const { rows } = await q('select id from users where username=$1',[username]); const uid = rows[0]?.id; if(!uid) return res.status(401).json({ ok:false, error:'无效用户' }); const ins = await q('insert into posts(user_id, content, file_id) values ($1,$2,$3) returning id',[uid, content||'', fileId||null]); res.json({ ok:true, id: ins.rows[0].id }); } catch(e){ const code = e.message==='missing token'?401:500; res.status(code).json({ ok:false, error:e.message }); } }
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  
+  try {
+    // ⛳ 轻量方案：只读取 X-User-Id，不做 JWT 校验
+    const userId = req.headers['x-user-id'] || null;
+    const { content, fileId } = req.body || {};
+    
+    if (!content && !fileId) {
+      return res.status(400).json({ ok: false, error: '内容与附件不能同时为空' });
+    }
+    
+    // 直接使用 userId 创建帖子，允许匿名（userId 为 null）
+    const ins = await q(
+      'INSERT INTO posts(user_id, content, file_id) VALUES ($1, $2, $3) RETURNING id',
+      [userId, content || '', fileId || null]
+    );
+    
+    res.json({ ok: true, id: ins.rows[0].id });
+  } catch (e) {
+    console.error('create post error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+}

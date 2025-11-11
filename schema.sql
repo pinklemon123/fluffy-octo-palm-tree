@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 -- === 文件表 ===
 CREATE TABLE IF NOT EXISTS files (
   id         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    uuid REFERENCES users(id) ON DELETE SET NULL, -- 允许匿名上传
   filename   text NOT NULL,
   mime       text NOT NULL,
   size       integer NOT NULL CHECK (size >= 0),
@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id, created_at DESC);
 -- === 帖子表 ===
 CREATE TABLE IF NOT EXISTS posts (
   id         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    uuid REFERENCES users(id) ON DELETE SET NULL, -- 允许匿名发帖
   content    text NOT NULL,
   file_id    uuid REFERENCES files(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now()

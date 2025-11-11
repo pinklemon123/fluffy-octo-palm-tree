@@ -1,6 +1,5 @@
 import { IncomingForm } from 'formidable';
 import { readFile } from 'fs/promises';
-import { requireAuth } from '../_utils/auth-node.js';
 import { q } from '../_utils/db-node.js';
 
 export const config = {
@@ -30,8 +29,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ⛳ 验证用户身份，获取 userId
-    const userId = requireAuth(req);
+    // ⛳ 轻量方案：只读取 X-User-Id，不做 JWT 校验
+    const userId = req.headers['x-user-id'] || null;
 
     // 解析表单数据
     const { files } = await parseForm(req);
@@ -75,10 +74,7 @@ export default async function handler(req, res) {
     let msg = typeof e?.message === 'string' ? e.message : String(e);
     let code = 500;
     
-    if (msg.includes('missing token') || msg.includes('invalid token')) {
-      code = 401;
-      msg = '请先登录';
-    } else if (msg.includes('maxFileSize exceeded')) {
+    if (msg.includes('maxFileSize exceeded')) {
       code = 400;
       msg = '文件过大，请选择小于 10MB 的文件';
     }

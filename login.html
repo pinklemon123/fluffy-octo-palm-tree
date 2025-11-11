@@ -17,7 +17,13 @@ document.getElementById('btn').onclick = async () => {
   if(!payload.username || !payload.password) return alert('请输入用户名和密码');
   const r = await fetch('/api/users/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const j = await r.json();
-  if(j.ok){ localStorage.setItem('token',j.token); location.href='index.html'; } else { alert(j.error||'失败'); }
+  if(j.ok){ 
+    localStorage.setItem('token',j.token); 
+    localStorage.setItem('userId', j.user.id);  // ← 关键：保存userId
+    location.href='index.html'; 
+  } else { 
+    alert(j.error||'失败'); 
+  }
 };
 </script>
 </body></html>

@@ -25,18 +25,23 @@
 <div id="list"></div>
 
 <script>
-// 封装成函数，随用随取，避免拿到旧 token
-const getToken = () => localStorage.getItem('token');
+// 封装成函数，随用随取
+const getUserId = () => localStorage.getItem('userId');
+const getToken = () => localStorage.getItem('token'); // 保留以备后用
 
 const loginLink = document.getElementById('loginLink');
 const logoutBtn = document.getElementById('logoutBtn');
 
-// 初始 UI
-if (getToken()) { 
+// 初始 UI  
+if (getUserId()) { 
   loginLink.style.display='none'; 
   logoutBtn.style.display='inline-block'; 
 }
-logoutBtn.onclick = ()=>{ localStorage.removeItem('token'); location.reload(); };
+logoutBtn.onclick = ()=>{ 
+  localStorage.removeItem('token'); 
+  localStorage.removeItem('userId'); 
+  location.reload(); 
+};
 
 function escapeHtml(s){return (s||'').replace(/[&<>"]|'/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 
@@ -103,9 +108,9 @@ async function uploadFileIfAny(){
   const fd = new FormData();
   fd.append('file', f); // 字段名必须叫 'file'
 
-  const headers = new Headers();
-  const t = getToken();
-  if (t) headers.set('Authorization', `Bearer ${t}`);
+  const userId = getUserId();
+  const headers = {};
+  if (userId) headers['X-User-Id'] = userId; // ← 不再用 Authorization，改用 X-User-Id
 
   const resp = await fetch('/api/files/upload', {
     method: 'POST',
@@ -129,8 +134,8 @@ async function uploadFileIfAny(){
 }
 
 document.getElementById('send').onclick = async () => {
-  const t = getToken();                 // ⛳ 发帖时也实时读取
-  if(!t) return alert('请先登录');
+  const userId = getUserId();                 // ⛳ 检查 userId 而不是 token
+  if(!userId) return alert('请先登录');
 
   const contentEl = document.getElementById('content');
   const content = contentEl.value.trim();
@@ -144,7 +149,7 @@ document.getElementById('send').onclick = async () => {
       method: 'POST',
       headers: {
         'Content-Type':'application/json',
-        'Authorization': `Bearer ${t}`  // ⛳ 保证携带最新 token
+        'X-User-Id': userId  // ⛳ 不再用 Authorization，改用 X-User-Id
       },
       body: JSON.stringify({ content, fileId })
     });
