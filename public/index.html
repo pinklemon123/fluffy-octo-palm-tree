@@ -56,8 +56,15 @@ async function load(){
 async function uploadFileIfAny(){
   const f = document.getElementById('fileInput').files[0];
   if(!f) return null;
-  const fd = new FormData(); fd.append('file', f);
-  const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+  const r = await fetch('/api/files/upload',{
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+token,
+      'Content-Type': f.type,
+      'X-Filename': f.name
+    },
+    body: f
+  });
   const j = await r.json();
   if(!j.ok) throw new Error(j.error||'上传失败');
   return j.file?.id || j.id || null;

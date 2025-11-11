@@ -69,8 +69,18 @@ function showSelfControls(){
     </div>`;
   document.getElementById('upform').onsubmit = async e => {
     e.preventDefault();
-    const fd = new FormData(document.getElementById('upform'));
-    const r = await fetch('/api/files/upload',{method:'POST',headers:{'Authorization':'Bearer '+myToken},body:fd});
+    const fileInput = document.getElementById('upform').querySelector('input[type="file"]');
+    const file = fileInput.files[0];
+    if(!file) { alert('请选择文件'); return; }
+    const r = await fetch('/api/files/upload',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+myToken,
+        'Content-Type': file.type,
+        'X-Filename': file.name
+      },
+      body: file
+    });
     const j = await r.json();
     if(j.ok){ alert('上传成功'); loadFiles(); } else alert(j.error||'失败');
   };
