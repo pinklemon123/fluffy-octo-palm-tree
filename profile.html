@@ -120,232 +120,109 @@
 </div>
 
 <script>
-// URL参数缺失保护
+const $ = s => document.querySelector(s);
+const esc = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 const qs = new URLSearchParams(location.search);
-const targetId   = qs.get('id');
-const targetName = qs.get('user');
+const username = qs.get('user') || '';
 
-if(!targetId && !targetName){
-  location.href = 'index.html'; // 参数缺失时跳转回首页
-  return;
-}
-
-const getUserId = ()=>localStorage.getItem('userId');
-
-async function api(path, opt={}) {
-  const headers = opt.headers || {};
-  const uid = getUserId();
-  if (uid) headers['X-User-Id'] = uid;
-  opt.headers = headers;
-  const r = await fetch(path, opt);
+function me(){ try{ return JSON.parse(localStorage.getItem('currentUser')||'null'); }catch{ return null } }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({ headers: { } }, opt));
   const t = await r.text();
   let j; try { j = JSON.parse(t) } catch { j = { ok:false, error:t } }
-  if (!r.ok || !j.ok) throw new Error(j.error || r.statusText);
+  if (!r.ok || j.ok === false) throw new Error(j.error || r.statusText);
   return j;
 }
 
 function renderPosts(list){
-  const box = document.getElementById('posts'); box.innerHTML='';
-  for(const p of list){
+  const box = $('#posts'); box.innerHTML='';
+  (list||[]).forEach(p=>{
     const el = document.createElement('div'); el.className='card';
-    
-    const imgHtml = p.image_url
-      ? `<img src="${(p.image_url)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
+    const img = p.image_url
+      ? `<div class="post-img"><img src="${esc(p.image_url)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid #eee"></div>`
       : (p.file && p.file.mime && p.file.mime.startsWith('image/')
-          ? `<img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
-          : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : '');
-
+          ? `<div class="post-img"><img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid #eee"></div>`
+          : (p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : '')
+        );
     el.innerHTML = `
-      <div style="color:var(--muted);font-size:12px">${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
-      <div style="margin:.25rem 0;line-height:1.6">${(p.content||'').replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</div>
-      ${imgHtml}
+      <div style="color:#666;font-size:12px">${new Date(p.created_at || p.createdAt).toLocaleString()}</div>
+      <div style="margin:.25rem 0">${esc(p.content||'')}</div>
+      ${img}
     `;
     box.appendChild(el);
-  }
+  });
 }
 
 function renderFiles(list){
-  const box = document.getElementById('files'); box.innerHTML='';
-  for(const f of list){
-    const el=document.createElement('div'); el.className='card';
-    const url = `/api/files/${f.id}`;
-    el.innerHTML = (f.mime||'').startsWith('image/')
-      ? `<img src="${url}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
-      : `<a href="${url}" target="_blank" class="btn" style="display:block;text-align:center">${f.filename||'文件'}</a>`;
+  const box = $('#files'); box.innerHTML='';
+  (list||[]).forEach(f=>{
+    const el = document.createElement('div'); el.className='card';
+    const isImg = f.mime && f.mime.startsWith('image/');
+    const url = f.url || `/api/files/${f.id}`;
+    el.innerHTML = isImg
+      ? `<img src="${esc(url)}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;border:1px solid #eee">`
+      : `<a href="${esc(url)}" target="_blank">${esc(f.filename||'文件')}</a>`;
     box.appendChild(el);
-  }
+  });
 }
 
-let targetUser;
-
-// Modal功能
-function openModal(title, content) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = content;
-  document.getElementById('modal').style.display = 'block';
-}
-
-function closeModal() {
-  document.getElementById('modal').style.display = 'none';
-}
-
-function showUsersModal(title, users){
-  const html = users.map(x=>`
-    <div class="user-item">
-      <img src="${x.avatar_url||'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgiIGhlaWdodD0iMjgiIHZpZXdCb3g9IjAgMCAyOCAyOCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTQiIGN5PSIxNCIgcj0iMTQiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiPgo8L3N2Zz4K'}" class="avatar-sm" alt="avatar">
-      <a href="/profile.html?user=${encodeURIComponent(x.username)}">${x.display_name||x.username}</a>
-    </div>`).join('') || '<div style="color:var(--muted);text-align:center;padding:20px">空空如也</div>';
-  openModal(title, html);
-}
-
-// 刷新统计
-async function refreshStats(){
-  try {
-    const s = await fetch(`/api/users/stats?user_id=${encodeURIComponent(targetUser.id)}`);
-    const sj = await s.json();
-    if (sj.ok){
-      document.getElementById('badgePosts').textContent = sj.n_posts;
-      document.getElementById('badgeFollowers').textContent = sj.n_followers;
-      document.getElementById('badgeFollowing').textContent = sj.n_following;
-    }
-  } catch(e) {
-    console.error('refresh stats error:', e);
-  }
-}
+let targetUser = null;
+let isFollowing = false;
 
 async function loadProfile(){
-  try {
-    // 1) 获取用户信息
-    const info = targetId
-      ? await api(`/api/users/get?id=${encodeURIComponent(targetId)}`)
-      : await api(`/api/users/getByName?username=${encodeURIComponent(targetName||'')}`);
-    targetUser = info.user;
-    if (!targetUser) throw new Error('用户不存在');
+  if (!username) { location.href='index.html'; return; }
 
-    document.getElementById('name').textContent = targetUser.display_name || targetUser.username || '未命名';
-    document.getElementById('bio').textContent = targetUser.bio || '这个人很低调，还没有写介绍。';
-    if (targetUser.avatar_url) document.getElementById('avatar').src = targetUser.avatar_url;
+  // 1) 拉用户信息
+  const ures = await api(`/api/users/getByName?username=${encodeURIComponent(username)}`);
+  targetUser = ures.user;
 
-    // 2) 判断是否为自己的页面
-    const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    const isSelf = !!(me && me.id && me.id === targetUser.id);
+  $('#name').textContent = targetUser.display_name || targetUser.username;
+  $('#bio').textContent  = targetUser.bio || '这个人很低调，还没有写简介。';
+  $('#avatar').src       = targetUser.avatar_url || '/default-avatar.png';
 
-    const followBtn = document.getElementById('followBtn');
-    const editBtn = document.getElementById('editBtn');
+  // 2) 统计角标
+  const st = await api(`/api/users/stats?user_id=${encodeURIComponent(targetUser.id)}`);
+  $('#postCount').textContent = `帖子 ${st.n_posts}`;
+  $('#fileCount').textContent = `文件 ${(st.n_files||0) || (st.files_count||0) || 0}`;
+  $('#fans').textContent      = `粉丝 ${st.n_followers}`;
+  $('#follows').textContent   = `关注 ${st.n_following}`;
 
-    if (!isSelf && me?.id) {
-      // 他人页面，显示关注按钮
-      followBtn.style.display = 'inline-flex';
-      editBtn.style.display = 'none';
-      
-      // 查询关注状态
-      const s = await fetch(`/api/follow/status?follower_id=${encodeURIComponent(me.id)}&followee_id=${encodeURIComponent(targetUser.id)}`);
-      const sj = await s.json();
-      const setBtn = (f)=> followBtn.textContent = f ? '已关注' : '关注';
-      setBtn(!!sj.followed);
+  // 3) 帖子 & 文件
+  const posts = await api(`/api/posts/list?user_id=${encodeURIComponent(targetUser.id)}`);
+  renderPosts(posts.data || []);
+  // 如果你没有 /api/files/by-user，可以把下一行替换为从 posts 中抽取图片 URL。
+  const files = await api(`/api/files/by-user?user_id=${encodeURIComponent(targetUser.id)}`).catch(()=>({data:[]}));
+  renderFiles(files.data || []);
 
-      followBtn.onclick = async ()=>{
-        if (!me?.id) return alert('请先登录');
-        try {
-          const r = await fetch('/api/follow/toggle', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ follower_id: me.id, followee_id: targetUser.id })
-          });
-          const j = await r.json();
-          if (!r.ok) return alert(j.error || '操作失败');
-          setBtn(j.followed);
-          await refreshStats(); // 刷新统计
-        } catch(e) {
-          alert('操作失败：' + e.message);
-        }
-      };
-    } else if (isSelf) {
-      // 自己页面，显示编辑按钮
-      followBtn.style.display = 'none';
-      editBtn.style.display = 'inline-flex';
-    } else {
-      // 未登录
-      followBtn.style.display = 'none';
-      editBtn.style.display = 'none';
-    }
-
-    // 3) 加载统计和内容
-    await refreshStats();
-
-    // 绑定粉丝/关注列表点击事件
-    document.getElementById('btnFollowers').onclick = async ()=>{
-      try {
-        const r = await fetch(`/api/follow/list?user_id=${encodeURIComponent(targetUser.id)}&type=followers`);
-        const j = await r.json();
-        showUsersModal('粉丝', j.users||[]);
-      } catch(e) {
-        alert('加载失败：' + e.message);
-      }
-    };
-
-    document.getElementById('btnFollowing').onclick = async ()=>{
-      try {
-        const r = await fetch(`/api/follow/list?user_id=${encodeURIComponent(targetUser.id)}&type=following`);
-        const j = await r.json();
-        showUsersModal('关注', j.users||[]);
-      } catch(e) {
-        alert('加载失败：' + e.message);
-      }
-    };
-
-    // 4) 加载帖子和文件
-    const posts = await api(`/api/posts/list?user_id=${targetUser.id}`);
-    renderPosts(posts.data||[]);
-    const files = await api(`/api/files/by-user?user_id=${targetUser.id}`);
-    renderFiles(files.data||[]);
-  } catch(e) {
-    console.error('Profile load error:', e);
-    document.body.innerHTML = `<div style="padding:2rem;color:#c00;text-align:center">加载失败：${e.message}</div>`;
+  // 4) 关注按钮（仅看别人时展示）
+  const mine = me();
+  const isSelf = !!(mine && mine.id === targetUser.id);
+  const btn = $('#followBtn');
+  btn.style.display = isSelf ? 'none' : 'inline-flex';
+  if (!isSelf && mine && mine.id){
+    const s = await api(`/api/follow/status?follower_id=${encodeURIComponent(mine.id)}&followee_id=${encodeURIComponent(targetUser.id)}`).catch(()=>({followed:false}));
+    isFollowing = !!s.followed;
+    btn.textContent = isFollowing ? '已关注' : '关注';
   }
 }
 
-// 编辑资料功能
-document.getElementById('editBtn').onclick = ()=>{
-  if (!targetUser) return;
-  document.getElementById('inpDisplay').value = targetUser.display_name || '';
-  document.getElementById('inpAvatar').value  = targetUser.avatar_url   || '';
-  document.getElementById('inpBio').value     = targetUser.bio          || '';
-  document.getElementById('editDlg').style.display = 'block';
+$('#followBtn').onclick = async ()=>{
+  const mine = me();
+  if (!mine?.id) { alert('请先登录'); return; }
+  if (!targetUser?.id) return;
+  if (mine.id === targetUser.id) { alert('不能关注自己'); return; }
+  const r = await api('/api/follow/toggle', {
+    method:'POST',
+    body: JSON.stringify({ follower_id: mine.id, followee_id: targetUser.id })
+  });
+  isFollowing = !!r.followed;
+  $('#followBtn').textContent = isFollowing ? '已关注' : '关注';
 };
 
-document.getElementById('saveProfile').onclick = async ()=>{
-  const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
-  if (!me?.id) return alert('请先登录');
-  const payload = {
-    user_id: me.id,
-    display_name: document.getElementById('inpDisplay').value.trim(),
-    avatar_url:   document.getElementById('inpAvatar').value.trim(),
-    bio:          document.getElementById('inpBio').value.trim()
-  };
-  
-  try {
-    const r = await fetch('/api/users/update', { 
-      method:'POST', 
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload) 
-    });
-    const j = await r.json();
-    if (!r.ok) return alert(j.error || '保存失败');
-    alert('已保存');
-    document.getElementById('editDlg').style.display = 'none';
-    location.reload();
-  } catch(e) {
-    alert('保存失败：' + e.message);
-  }
-};
-
-// 点击modal背景关闭
-document.getElementById('modal').onclick = (e) => {
-  if (e.target.id === 'modal') closeModal();
-};
-
-loadProfile();
+loadProfile().catch(err=>{
+  console.error(err);
+  alert('加载失败：' + (err?.message || err));
+});
 </script>
 </body>
 </html>
