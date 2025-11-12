@@ -1,5 +1,4 @@
-// /api/files/by-user.js - 根据用户ID获取文件列表
-import { getDbConnection } from '../_db.js';
+import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,15 +11,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'Missing user_id' });
     }
 
-    const db = getDbConnection();
-    const result = await db.query(
-      'SELECT id, filename, size, mime, created_at FROM files WHERE user_id = $1 ORDER BY created_at DESC',
-      [user_id]
-    );
+    const sql = neon(process.env.DATABASE_URL);
+    const result = await sql`
+      SELECT id, filename, size, mime, created_at 
+      FROM files 
+      WHERE user_id = ${user_id} 
+      ORDER BY created_at DESC
+    `;
 
     return res.json({
       ok: true,
-      data: result.rows
+      data: result
     });
   } catch (error) {
     console.error('Get files by user error:', error);

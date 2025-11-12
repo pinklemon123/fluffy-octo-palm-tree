@@ -1,5 +1,4 @@
-// /api/follow/stats.js - 获取用户关注统计和关系状态
-import { getDbConnection } from '../_db.js';
+import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,34 +12,32 @@ export default async function handler(req, res) {
     }
 
     const current_user_id = req.headers['x-user-id']; // 当前登录用户
-    const db = getDbConnection();
+    const sql = neon(process.env.DATABASE_URL);
 
     // 查询关注数量
-    const followingResult = await db.query(
-      'SELECT COUNT(*) as count FROM follows WHERE follower_id = $1',
-      [user_id]
-    );
+    const followingResult = await sql`
+      SELECT COUNT(*) as count FROM follows WHERE follower_id = ${user_id}
+    `;
     
     // 查询粉丝数量
-    const followersResult = await db.query(
-      'SELECT COUNT(*) as count FROM follows WHERE following_id = $1',
-      [user_id]
-    );
+    const followersResult = await sql`
+      SELECT COUNT(*) as count FROM follows WHERE following_id = ${user_id}
+    `;
 
     // 查询当前用户是否关注了这个用户
     let isFollowing = false;
     if (current_user_id) {
-      const followResult = await db.query(
-        'SELECT id FROM follows WHERE follower_id = $1 AND following_id = $2',
-        [current_user_id, user_id]
-      );
-      isFollowing = followResult.rows.length > 0;
+      const followResult = await sql`
+        SELECT id FROM follows 
+        WHERE follower_id = ${current_user_id} AND following_id = ${user_id}
+      `;
+      isFollowing = followResult.length > 0;
     }
 
     return res.json({
       ok: true,
-      following_count: parseInt(followingResult.rows[0].count),
-      followers_count: parseInt(followersResult.rows[0].count),
+      following_count: parseInt(followingResult[0].count),
+      followers_count: parseInt(followersResult[0].count),
       is_following: isFollowing
     });
   } catch (error) {
