@@ -6,73 +6,130 @@
   <link rel="stylesheet" href="styles.css" />
   <title>个人空间</title>
   <style>
+    :root{
+      --brand:#22c55e;      /* 主绿色 */
+      --brand-600:#16a34a;
+      --brand-50:#ecfdf5;
+      --text:#111827;
+      --muted:#6b7280;
+      --card:#ffffff;
+      --bg:#f6f7f8;
+      --border:#e5e7eb;
+      --radius:14px;
+      --shadow:0 6px 24px rgba(16,185,129,.12);
+    }
+
+    html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
+    .container{max-width:920px;margin:0 auto;padding:24px;}
+    
     .row{display:flex;gap:12px;align-items:center}
-    .pill{padding:.25rem .6rem;border:1px solid #ddd;border-radius:999px;font-size:12px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-    .card{border:1px solid #eee;border-radius:10px;padding:10px}
+    
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:var(--brand-50);color:var(--brand-600);font-size:12px;border:1px solid #d1fae5}
+    
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:8px 14px;border-radius:12px;border:1px solid var(--border);
+      background:#fff; transition:.2s; cursor:pointer; text-decoration:none;
+    }
+    .btn:hover{box-shadow:var(--shadow)}
+    .btn-primary{background:var(--brand); color:#fff; border-color:var(--brand); }
+    .btn-primary:hover{background:var(--brand-600)}
+
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:12px 0;
+    }
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--brand-50);object-fit:cover}
+    .avatar-sm{width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--border)}
+
+    .badge-row{display:flex;gap:8px;flex-wrap:wrap}
+    .link-muted{color:var(--muted);text-decoration:none}
+    .link-muted:hover{color:var(--brand-600)}
+
+    /* Modal styles */
+    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:none}
+    .modal-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:var(--radius);max-width:400px;width:90%}
+    .user-item{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+    .user-item:last-child{border-bottom:none}
+    .user-item a{color:var(--text);text-decoration:none;font-weight:500}
+    .user-item a:hover{color:var(--brand-600)}
   </style>
 </head>
 <body>
-<div class="row">
-  <a href="index.html">← 返回</a>
-  <h2 style="margin:0">个人空间</h2>
-  <span style="flex:1"></span>
-  <button id="followBtn" class="pill">关注</button>
-  <button id="editBtn" class="pill" style="display:none">编辑资料</button>
+<div class="container">
+  <div class="row" style="margin-bottom:20px">
+    <a href="index.html" class="btn">← 返回</a>
+    <h2 style="margin:0;flex:1">个人空间</h2>
+    <button id="followBtn" class="btn btn-primary" style="display:none">关注</button>
+    <button id="editBtn" class="btn" style="display:none">编辑资料</button>
+  </div>
+
+  <!-- 用户信息卡片 -->
+  <div class="card" style="display:flex;gap:16px;align-items:center">
+    <img class="avatar" id="avatar" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB4PSIyOCIgeT0iMjAiIHdpZHRoPSIyNCIgaGVpZ2h0PSI0MCI+Cjx0ZXh0IHg9IjEyIiB5PSIzMiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD4KPHN2Zz4=" alt="avatar">
+    <div style="flex:1">
+      <div style="font-size:20px;font-weight:600" id="name">—</div>
+      <div class="link-muted" id="bio">—</div>
+      <div class="badge-row" style="margin-top:8px">
+        <span class="badge">帖文 <b id="badgePosts">0</b></span>
+        <button id="btnFollowers" class="btn">粉丝 <b id="badgeFollowers">0</b></button>
+        <button id="btnFollowing" class="btn">关注 <b id="badgeFollowing">0</b></button>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin:20px 0 10px">TA 的帖子</h3>
+  <div id="posts" class="grid"></div>
+
+  <h3 style="margin:20px 0 10px">TA 的文件</h3>
+  <div id="files" class="grid"></div>
+</div>
+
+<!-- Modal弹窗 -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span id="modalTitle">标题</span>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:18px;cursor:pointer">&times;</button>
+    </div>
+    <div id="modalBody">内容</div>
+  </div>
 </div>
 
 <!-- 编辑资料弹窗 -->
-<div id="editDlg" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border:1px solid #ccc;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000">
+<div id="editDlg" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:1001;width:400px">
   <h3 style="margin-top:0">编辑资料</h3>
   <div style="margin:10px 0">
     <label>昵称(显示名):</label><br>
-    <input id="inpDisplay" placeholder="昵称(显示名)" style="width:100%;margin-top:4px;padding:8px">
+    <input id="inpDisplay" placeholder="昵称(显示名)" style="width:100%;margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:8px">
   </div>
   <div style="margin:10px 0">
     <label>头像URL:</label><br>
-    <input id="inpAvatar" placeholder="头像URL" style="width:100%;margin-top:4px;padding:8px">
+    <input id="inpAvatar" placeholder="头像URL" style="width:100%;margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:8px">
   </div>
   <div style="margin:10px 0">
     <label>个人简介:</label><br>
-    <textarea id="inpBio" placeholder="个人简介" style="width:100%;margin-top:4px;padding:8px;height:60px"></textarea>
+    <textarea id="inpBio" placeholder="个人简介" style="width:100%;margin-top:4px;padding:8px;height:60px;border:1px solid var(--border);border-radius:8px"></textarea>
   </div>
   <div style="margin-top:15px;text-align:right">
-    <button onclick="document.getElementById('editDlg').style.display='none'" style="margin-right:10px">取消</button>
-    <button id="saveProfile">保存</button>
+    <button onclick="document.getElementById('editDlg').style.display='none'" class="btn" style="margin-right:10px">取消</button>
+    <button id="saveProfile" class="btn btn-primary">保存</button>
   </div>
 </div>
-
-<div id="basic" class="row" style="margin:12px 0">
-  <img id="avatar" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB4PSIyOCIgeT0iMjAiIHdpZHRoPSIyNCIgaGVpZ2h0PSI0MCI+Cjx0ZXh0IHg9IjEyIiB5PSIzMiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD4KPHN2Zz4=" alt="avatar" width="80" height="80" style="border-radius:50%;object-fit:cover">
-  <div>
-    <div id="name" style="font-size:20px;font-weight:600">—</div>
-    <div id="bio" style="color:#666">—</div>
-    <div id="stats" class="row" style="margin-top:6px;color:#666">
-      <span id="postCount" class="pill">帖子 0</span>
-      <span id="fileCount" class="pill">文件 0</span>
-      <span id="follows"   class="pill">关注 0</span>
-      <span id="fans"      class="pill">粉丝 0</span>
-    </div>
-  </div>
-</div>
-
-<h3 style="margin:12px 0 6px">TA 的帖子</h3>
-<div id="posts" class="grid"></div>
-
-<h3 style="margin:12px 0 6px">TA 的文件</h3>
-<div id="files" class="grid"></div>
 
 <script>
+<script>
 const getUserId = ()=>localStorage.getItem('userId');
-const qs = new URLSearchParams(location.search);            // ✅ 不用正则
-// 支持两种打开方式：?id=<uuid> 或 ?user=<用户名>
+const qs = new URLSearchParams(location.search);
 const targetId   = qs.get('id');
 const targetName = qs.get('user');
 
 async function api(path, opt={}) {
   const headers = opt.headers || {};
   const uid = getUserId();
-  if (uid) headers['X-User-Id'] = uid;                      // 轻量模式，只带 userId
+  if (uid) headers['X-User-Id'] = uid;
   opt.headers = headers;
   const r = await fetch(path, opt);
   const t = await r.text();
@@ -93,13 +150,12 @@ function renderPosts(list){
           : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : '');
 
     el.innerHTML = `
-      <div style="color:#666;font-size:12px">${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
-      <div style="margin:.25rem 0">${(p.content||'').replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</div>
+      <div style="color:var(--muted);font-size:12px">${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
+      <div style="margin:.25rem 0;line-height:1.6">${(p.content||'').replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</div>
       ${imgHtml}
     `;
     box.appendChild(el);
   }
-  document.getElementById('postCount').textContent = `帖子 ${list.length}`;
 }
 
 function renderFiles(list){
@@ -109,18 +165,51 @@ function renderFiles(list){
     const url = `/api/files/${f.id}`;
     el.innerHTML = (f.mime||'').startsWith('image/')
       ? `<img src="${url}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
-      : `<a href="${url}" target="_blank">${f.filename||'文件'}</a>`;
+      : `<a href="${url}" target="_blank" class="btn" style="display:block;text-align:center">${f.filename||'文件'}</a>`;
     box.appendChild(el);
   }
-  document.getElementById('fileCount').textContent = `文件 ${list.length}`;
 }
 
-let targetUser;   // 被查看的用户
-let isFollowing = false;
+let targetUser;
+
+// Modal功能
+function openModal(title, content) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = content;
+  document.getElementById('modal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+function showUsersModal(title, users){
+  const html = users.map(x=>`
+    <div class="user-item">
+      <img src="${x.avatar_url||'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgiIGhlaWdodD0iMjgiIHZpZXdCb3g9IjAgMCAyOCAyOCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTQiIGN5PSIxNCIgcj0iMTQiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiPgo8L3N2Zz4K'}" class="avatar-sm" alt="avatar">
+      <a href="/profile.html?user=${encodeURIComponent(x.username)}">${x.display_name||x.username}</a>
+    </div>`).join('') || '<div style="color:var(--muted);text-align:center;padding:20px">空空如也</div>';
+  openModal(title, html);
+}
+
+// 刷新统计
+async function refreshStats(){
+  try {
+    const s = await fetch(`/api/users/stats?user_id=${encodeURIComponent(targetUser.id)}`);
+    const sj = await s.json();
+    if (sj.ok){
+      document.getElementById('badgePosts').textContent = sj.n_posts;
+      document.getElementById('badgeFollowers').textContent = sj.n_followers;
+      document.getElementById('badgeFollowing').textContent = sj.n_following;
+    }
+  } catch(e) {
+    console.error('refresh stats error:', e);
+  }
+}
 
 async function loadProfile(){
   try {
-    // 1) 拉取用户信息（优先 id，其次用户名）
+    // 1) 获取用户信息
     const info = targetId
       ? await api(`/api/users/get?id=${encodeURIComponent(targetId)}`)
       : await api(`/api/users/getByName?username=${encodeURIComponent(targetName||'')}`);
@@ -128,10 +217,10 @@ async function loadProfile(){
     if (!targetUser) throw new Error('用户不存在');
 
     document.getElementById('name').textContent = targetUser.display_name || targetUser.username || '未命名';
-    document.getElementById('bio').textContent  = targetUser.bio || '这个人很低调，还没有写介绍。';
+    document.getElementById('bio').textContent = targetUser.bio || '这个人很低调，还没有写介绍。';
     if (targetUser.avatar_url) document.getElementById('avatar').src = targetUser.avatar_url;
 
-    // 2) 区分自己/别人
+    // 2) 判断是否为自己的页面
     const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
     const isSelf = !!(me && me.id && me.id === targetUser.id);
 
@@ -139,11 +228,11 @@ async function loadProfile(){
     const editBtn = document.getElementById('editBtn');
 
     if (!isSelf && me?.id) {
-      // 是别人的页面，显示关注按钮
+      // 他人页面，显示关注按钮
       followBtn.style.display = 'inline-flex';
       editBtn.style.display = 'none';
       
-      // 先查当前关注状态
+      // 查询关注状态
       const s = await fetch(`/api/follow/status?follower_id=${encodeURIComponent(me.id)}&followee_id=${encodeURIComponent(targetUser.id)}`);
       const sj = await s.json();
       const setBtn = (f)=> followBtn.textContent = f ? '已关注' : '关注';
@@ -151,17 +240,22 @@ async function loadProfile(){
 
       followBtn.onclick = async ()=>{
         if (!me?.id) return alert('请先登录');
-        const r = await fetch('/api/follow/toggle', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ follower_id: me.id, followee_id: targetUser.id })
-        });
-        const j = await r.json();
-        if (!r.ok) return alert(j.error || '操作失败');
-        setBtn(j.followed);
+        try {
+          const r = await fetch('/api/follow/toggle', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ follower_id: me.id, followee_id: targetUser.id })
+          });
+          const j = await r.json();
+          if (!r.ok) return alert(j.error || '操作失败');
+          setBtn(j.followed);
+          await refreshStats(); // 刷新统计
+        } catch(e) {
+          alert('操作失败：' + e.message);
+        }
       };
     } else if (isSelf) {
-      // 是自己的页面，显示编辑按钮
+      // 自己页面，显示编辑按钮
       followBtn.style.display = 'none';
       editBtn.style.display = 'inline-flex';
     } else {
@@ -170,19 +264,38 @@ async function loadProfile(){
       editBtn.style.display = 'none';
     }
 
-    // 3) 关注数量统计
-    const st = await api(`/api/follow/stats?user_id=${targetUser.id}`);
-    document.getElementById('follows').textContent = `关注 ${st.following_count}`;
-    document.getElementById('fans').textContent    = `粉丝 ${st.followers_count}`;
+    // 3) 加载统计和内容
+    await refreshStats();
 
-    // 4) 帖子、文件
+    // 绑定粉丝/关注列表点击事件
+    document.getElementById('btnFollowers').onclick = async ()=>{
+      try {
+        const r = await fetch(`/api/follow/list?user_id=${encodeURIComponent(targetUser.id)}&type=followers`);
+        const j = await r.json();
+        showUsersModal('粉丝', j.users||[]);
+      } catch(e) {
+        alert('加载失败：' + e.message);
+      }
+    };
+
+    document.getElementById('btnFollowing').onclick = async ()=>{
+      try {
+        const r = await fetch(`/api/follow/list?user_id=${encodeURIComponent(targetUser.id)}&type=following`);
+        const j = await r.json();
+        showUsersModal('关注', j.users||[]);
+      } catch(e) {
+        alert('加载失败：' + e.message);
+      }
+    };
+
+    // 4) 加载帖子和文件
     const posts = await api(`/api/posts/list?user_id=${targetUser.id}`);
     renderPosts(posts.data||[]);
     const files = await api(`/api/files/by-user?user_id=${targetUser.id}`);
     renderFiles(files.data||[]);
   } catch(e) {
     console.error('Profile load error:', e);
-    throw e;
+    document.body.innerHTML = `<div style="padding:2rem;color:#c00;text-align:center">加载失败：${e.message}</div>`;
   }
 }
 
@@ -221,9 +334,12 @@ document.getElementById('saveProfile').onclick = async ()=>{
   }
 };
 
-loadProfile().catch(err=>{
-  document.body.innerHTML = `<div style="padding:2rem;color:#c00">加载失败：${err.message}</div>`;
-});
+// 点击modal背景关闭
+document.getElementById('modal').onclick = (e) => {
+  if (e.target.id === 'modal') closeModal();
+};
+
+loadProfile();
 </script>
 </body>
 </html>

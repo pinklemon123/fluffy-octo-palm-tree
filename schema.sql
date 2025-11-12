@@ -26,16 +26,30 @@ CREATE TABLE IF NOT EXISTS posts (
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id, created_at DESC);
 
--- === 关注表 ===
+-- === 关注表（统一结构）===
 CREATE TABLE IF NOT EXISTS follows (
-  follower_id  text NOT NULL,                               -- 关注者ID
-  followee_id  text NOT NULL,                               -- 被关注者ID
+  follower_id  text NOT NULL,                               -- 关注者（谁在关注）
+  followee_id  text NOT NULL,                               -- 被关注者
   created_at   timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (follower_id, followee_id),
   CONSTRAINT follows_self CHECK (follower_id <> followee_id)
 );
-CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+
+-- 如果之前建过其他名字的列，统一改名（按需执行）
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_schema='public' AND table_name='follows' AND column_name='following_id')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_schema='public' AND table_name='follows' AND column_name='followee_id')
+  THEN
+    EXECUTE 'ALTER TABLE public.follows RENAME COLUMN following_id TO followee_id';
+  END IF;
+END$$;
+
+-- 索引（提升列表/计数性能）
 CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id);
+CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 
 -- === 文件表（可选，如果需要文件上传）===
 CREATE TABLE IF NOT EXISTS files (

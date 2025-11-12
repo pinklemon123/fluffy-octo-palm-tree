@@ -1,28 +1,77 @@
 <!doctype html><html><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <link rel="stylesheet" href="styles.css"/>
-<title>讨论区</title></head><body>
-<div class="row">
-  <h2 style="flex:1">公共讨论区</h2>
+<title>讨论区</title>
+<style>
+:root{
+  --brand:#22c55e;
+  --brand-600:#16a34a;
+  --brand-50:#ecfdf5;
+  --text:#111827;
+  --muted:#6b7280;
+  --card:#ffffff;
+  --bg:#f6f7f8;
+  --border:#e5e7eb;
+  --radius:14px;
+  --shadow:0 6px 24px rgba(16,185,129,.12);
+}
+
+html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
+.container{max-width:920px;margin:0 auto;padding:24px;}
+
+.row{display:flex;gap:12px;align-items:center}
+
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:var(--brand-50);color:var(--brand-600);font-size:12px;border:1px solid #d1fae5}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:8px 14px;border-radius:12px;border:1px solid var(--border);
+  background:#fff; transition:.2s; cursor:pointer; text-decoration:none;
+}
+.btn:hover{box-shadow:var(--shadow)}
+.btn-primary{background:var(--brand); color:#fff; border-color:var(--brand); }
+.btn-primary:hover{background:var(--brand-600)}
+
+.card{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:12px 0;
+}
+
+.post{margin-bottom:16px}
+.post .meta{color:var(--muted);font-size:12px;margin-bottom:6px}
+.post .content{line-height:1.6}
+
+#authBox a{color:var(--text);text-decoration:none;margin-left:12px}
+#authBox a:hover{color:var(--brand-600)}
+</style>
+</head><body>
+<div class="container">
+<div class="row" style="margin-bottom:20px">
+  <h2 style="flex:1;margin:0">公共讨论区</h2>
   <div id="authBox">
-    <a href="#" id="mineLink">我的</a>
-    <a href="login.html" id="loginLink">登录</a>
-    <button id="logoutBtn" style="display:none">退出</button>
+    <a href="#" id="mineLink" class="btn">我的</a>
+    <a href="login.html" id="loginLink" class="btn">登录</a>
+    <button id="logoutBtn" class="btn" style="display:none">退出</button>
   </div>
 </div>
 
-<div id="dbStatus" style="margin:.5rem 0;padding:.5rem;border-radius:6px;font-size:14px;"></div>
+<div id="dbStatus" class="badge" style="margin-bottom:20px"></div>
 
-<div class="row" style="gap:.5rem;align-items:flex-start">
-  <textarea id="content" rows="3" style="flex:1" placeholder="说点什么..."></textarea>
-  <div style="display:flex;flex-direction:column;gap:.5rem">
-    <input type="file" id="fileInput" />
-    <button id="send">发送</button>
+<!-- 发帖区域 -->
+<div class="card" style="margin-bottom:24px">
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <textarea id="content" rows="3" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical" placeholder="说点什么..."></textarea>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <input type="file" id="fileInput" style="font-size:12px" />
+      <button id="send" class="btn btn-primary">发送</button>
+    </div>
   </div>
 </div>
 
-<div id="counter" style="margin:.5rem 0;color:#888"></div>
+<div id="counter" style="margin-bottom:16px;color:var(--muted);font-size:14px"></div>
 <div id="list"></div>
+
+</div>
 
 <script>
 // 封装成函数，随用随取
@@ -52,19 +101,19 @@ async function checkDatabase() {
     const j = await r.json();
     const el = document.getElementById('dbStatus');
     if(j.ok) {
-      el.innerHTML = '✅ 数据库已连接';
-      el.style.backgroundColor = '#d4edda';
-      el.style.color = '#155724';
+      el.textContent = '✅ 数据库已连接';
     } else {
-      el.innerHTML = `❌ 数据库连接失败: ${j.error?.message || '未知错误'}`;
-      el.style.backgroundColor = '#f8d7da';
-      el.style.color = '#721c24';
+      el.textContent = `❌ 数据库连接失败: ${j.error?.message || '未知错误'}`;
+      el.style.background = '#fee2e2';
+      el.style.color = '#dc2626';
+      el.style.borderColor = '#fca5a5';
     }
   } catch(e) {
     const el = document.getElementById('dbStatus');
-    el.innerHTML = '❌ 数据库连接失败 - 网络错误';
-    el.style.backgroundColor = '#f8d7da';
-    el.style.color = '#721c24';
+    el.textContent = '❌ 数据库连接失败 - 网络错误';
+    el.style.background = '#fee2e2';
+    el.style.color = '#dc2626';
+    el.style.borderColor = '#fca5a5';
   }
 }
 
