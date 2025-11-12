@@ -120,11 +120,17 @@
 </div>
 
 <script>
-<script>
-const getUserId = ()=>localStorage.getItem('userId');
+// URL参数缺失保护
 const qs = new URLSearchParams(location.search);
 const targetId   = qs.get('id');
 const targetName = qs.get('user');
+
+if(!targetId && !targetName){
+  location.href = 'index.html'; // 参数缺失时跳转回首页
+  return;
+}
+
+const getUserId = ()=>localStorage.getItem('userId');
 
 async function api(path, opt={}) {
   const headers = opt.headers || {};
