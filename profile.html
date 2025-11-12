@@ -63,12 +63,18 @@ function renderPosts(list){
   const box = document.getElementById('posts'); box.innerHTML='';
   for(const p of list){
     const el = document.createElement('div'); el.className='card';
+    
+    const imgHtml = p.image_url
+      ? `<img src="${(p.image_url)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
+      : (p.file && p.file.mime && p.file.mime.startsWith('image/')
+          ? `<img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
+          : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : '');
+
     el.innerHTML = `
       <div style="color:#666;font-size:12px">${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div style="margin:.25rem 0">${(p.content||'').replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</div>
-      ${p.file && p.file.mime && p.file.mime.startsWith('image/')
-        ? `<img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
-        : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : ''}`;
+      ${imgHtml}
+    `;
     box.appendChild(el);
   }
   document.getElementById('postCount').textContent = `帖子 ${list.length}`;
