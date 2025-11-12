@@ -20,8 +20,15 @@ document.getElementById('btn').onclick = async () => {
   const j = await r.json();
   if(j.ok){ 
     localStorage.setItem('token',j.token); 
-    localStorage.setItem('userId', j.userId);  // ⛳ 使用正确的字段名
-    localStorage.setItem('username', payload.username);  // 保存用户名以备后用
+    localStorage.setItem('userId', j.userId);
+    localStorage.setItem('username', payload.username);
+    
+    // 保存完整的用户对象，供发帖使用
+    const currentUser = {
+      id: j.userId,
+      username: payload.username
+    };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
     
     // 如果是新用户，给个提示
     if(j.isNewUser) {

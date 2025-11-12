@@ -18,6 +18,28 @@
   <h2 style="margin:0">个人空间</h2>
   <span style="flex:1"></span>
   <button id="followBtn" class="pill">关注</button>
+  <button id="editBtn" class="pill" style="display:none">编辑资料</button>
+</div>
+
+<!-- 编辑资料弹窗 -->
+<div id="editDlg" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border:1px solid #ccc;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000">
+  <h3 style="margin-top:0">编辑资料</h3>
+  <div style="margin:10px 0">
+    <label>昵称(显示名):</label><br>
+    <input id="inpDisplay" placeholder="昵称(显示名)" style="width:100%;margin-top:4px;padding:8px">
+  </div>
+  <div style="margin:10px 0">
+    <label>头像URL:</label><br>
+    <input id="inpAvatar" placeholder="头像URL" style="width:100%;margin-top:4px;padding:8px">
+  </div>
+  <div style="margin:10px 0">
+    <label>个人简介:</label><br>
+    <textarea id="inpBio" placeholder="个人简介" style="width:100%;margin-top:4px;padding:8px;height:60px"></textarea>
+  </div>
+  <div style="margin-top:15px;text-align:right">
+    <button onclick="document.getElementById('editDlg').style.display='none'" style="margin-right:10px">取消</button>
+    <button id="saveProfile">保存</button>
+  </div>
 </div>
 
 <div id="basic" class="row" style="margin:12px 0">
@@ -63,12 +85,18 @@ function renderPosts(list){
   const box = document.getElementById('posts'); box.innerHTML='';
   for(const p of list){
     const el = document.createElement('div'); el.className='card';
+    
+    const imgHtml = p.image_url
+      ? `<img src="${(p.image_url)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
+      : (p.file && p.file.mime && p.file.mime.startsWith('image/')
+          ? `<img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
+          : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : '');
+
     el.innerHTML = `
       <div style="color:#666;font-size:12px">${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div style="margin:.25rem 0">${(p.content||'').replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</div>
-      ${p.file && p.file.mime && p.file.mime.startsWith('image/')
-        ? `<img src="/api/files/${p.file.id}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px">`
-        : p.file ? `<a href="/api/files/${p.file.id}" target="_blank">查看附件</a>` : ''}`;
+      ${imgHtml}
+    `;
     box.appendChild(el);
   }
   document.getElementById('postCount').textContent = `帖子 ${list.length}`;
@@ -99,18 +127,55 @@ async function loadProfile(){
     targetUser = info.user;
     if (!targetUser) throw new Error('用户不存在');
 
-    document.getElementById('name').textContent = targetUser.username || '未命名';
+    document.getElementById('name').textContent = targetUser.display_name || targetUser.username || '未命名';
     document.getElementById('bio').textContent  = targetUser.bio || '这个人很低调，还没有写介绍。';
     if (targetUser.avatar_url) document.getElementById('avatar').src = targetUser.avatar_url;
 
-    // 2) 关注状态 & 数量
+    // 2) 区分自己/别人
+    const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSelf = !!(me && me.id && me.id === targetUser.id);
+
+    const followBtn = document.getElementById('followBtn');
+    const editBtn = document.getElementById('editBtn');
+
+    if (!isSelf && me?.id) {
+      // 是别人的页面，显示关注按钮
+      followBtn.style.display = 'inline-flex';
+      editBtn.style.display = 'none';
+      
+      // 先查当前关注状态
+      const s = await fetch(`/api/follow/status?follower_id=${encodeURIComponent(me.id)}&followee_id=${encodeURIComponent(targetUser.id)}`);
+      const sj = await s.json();
+      const setBtn = (f)=> followBtn.textContent = f ? '已关注' : '关注';
+      setBtn(!!sj.followed);
+
+      followBtn.onclick = async ()=>{
+        if (!me?.id) return alert('请先登录');
+        const r = await fetch('/api/follow/toggle', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ follower_id: me.id, followee_id: targetUser.id })
+        });
+        const j = await r.json();
+        if (!r.ok) return alert(j.error || '操作失败');
+        setBtn(j.followed);
+      };
+    } else if (isSelf) {
+      // 是自己的页面，显示编辑按钮
+      followBtn.style.display = 'none';
+      editBtn.style.display = 'inline-flex';
+    } else {
+      // 未登录
+      followBtn.style.display = 'none';
+      editBtn.style.display = 'none';
+    }
+
+    // 3) 关注数量统计
     const st = await api(`/api/follow/stats?user_id=${targetUser.id}`);
-    isFollowing = st.is_following;
     document.getElementById('follows').textContent = `关注 ${st.following_count}`;
     document.getElementById('fans').textContent    = `粉丝 ${st.followers_count}`;
-    document.getElementById('followBtn').textContent = (getUserId() && getUserId()!==targetUser.id) ? (isFollowing ? '取消关注' : '关注') : '关注';
 
-    // 3) 帖子、文件
+    // 4) 帖子、文件
     const posts = await api(`/api/posts/list?user_id=${targetUser.id}`);
     renderPosts(posts.data||[]);
     const files = await api(`/api/files/by-user?user_id=${targetUser.id}`);
@@ -121,23 +186,38 @@ async function loadProfile(){
   }
 }
 
-document.getElementById('followBtn').onclick = async ()=>{
-  if (!getUserId()) return alert('请先登录');
-  if (getUserId()===targetUser.id) return alert('不能关注自己');
+// 编辑资料功能
+document.getElementById('editBtn').onclick = ()=>{
+  if (!targetUser) return;
+  document.getElementById('inpDisplay').value = targetUser.display_name || '';
+  document.getElementById('inpAvatar').value  = targetUser.avatar_url   || '';
+  document.getElementById('inpBio').value     = targetUser.bio          || '';
+  document.getElementById('editDlg').style.display = 'block';
+};
+
+document.getElementById('saveProfile').onclick = async ()=>{
+  const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!me?.id) return alert('请先登录');
+  const payload = {
+    user_id: me.id,
+    display_name: document.getElementById('inpDisplay').value.trim(),
+    avatar_url:   document.getElementById('inpAvatar').value.trim(),
+    bio:          document.getElementById('inpBio').value.trim()
+  };
+  
   try {
-    const r = await api('/api/follow/toggle', {
-      method:'POST',
+    const r = await fetch('/api/users/update', { 
+      method:'POST', 
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ target_id: targetUser.id })
+      body: JSON.stringify(payload) 
     });
-    isFollowing = r.following;
-    document.getElementById('followBtn').textContent = isFollowing ? '取消关注' : '关注';
-    // 刷新统计
-    const st = await api(`/api/follow/stats?user_id=${targetUser.id}`);
-    document.getElementById('follows').textContent = `关注 ${st.following_count}`;
-    document.getElementById('fans').textContent    = `粉丝 ${st.followers_count}`;
+    const j = await r.json();
+    if (!r.ok) return alert(j.error || '保存失败');
+    alert('已保存');
+    document.getElementById('editDlg').style.display = 'none';
+    location.reload();
   } catch(e) {
-    alert('操作失败：' + e.message);
+    alert('保存失败：' + e.message);
   }
 };
 

@@ -5,7 +5,7 @@
 <div class="row">
   <h2 style="flex:1">公共讨论区</h2>
   <div id="authBox">
-    <a href="profile.html">我的</a>
+    <a href="#" id="mineLink">我的</a>
     <a href="login.html" id="loginLink">登录</a>
     <button id="logoutBtn" style="display:none">退出</button>
   </div>
@@ -75,21 +75,27 @@ async function load(){
   const el = document.getElementById('list'); el.innerHTML='';
   items.forEach(p=>{
     let preview = '';
-    if(p.file && p.file.mime){
+    if (p.image_url) {
+      preview = `<img src='${escapeHtml(p.image_url)}' style='max-width:160px;max-height:120px;border-radius:6px'>`;
+    } else if (p.file && p.file.mime) {
       const fileUrl = `/api/files/${p.file.id}`;
-      if(p.file.mime.startsWith('image/')) {
+      if (p.file.mime.startsWith('image/')) {
         preview = `<img src='${fileUrl}' style='max-width:160px;max-height:120px;border-radius:6px'>`;
-      } else if(p.file.mime === 'application/pdf') {
+      } else if (p.file.mime === 'application/pdf') {
         preview = `<a href='${fileUrl}' target='_blank'>PDF预览</a>`;
-      } else if(p.file.mime === 'text/html') {
+      } else if (p.file.mime === 'text/html') {
         preview = `<iframe src='${fileUrl}' style='width:260px;height:160px;border:1px solid #eee;border-radius:6px'></iframe>`;
       } else {
         preview = `<a href='${fileUrl}' download='${p.file.filename}'>下载附件</a>`;
       }
     }
-    const uname = (p.user&&p.user.username) || '匿名';
+    const uname = p.username || '匿名';  // 使用新API返回的username字段
+    const nameHtml = p.username
+      ? `<a href="/profile.html?user=${encodeURIComponent(p.username)}">${escapeHtml(uname)}</a>`
+      : `<span style="color:#999">${escapeHtml(uname)}</span>`;  // "匿名"不加链接
+    
     el.innerHTML += `<div class="post">
-      <div class="meta"><a href='profile.html?user=${encodeURIComponent(uname)}'>${uname}</a> · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
+      <div class="meta">${nameHtml} · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div>${escapeHtml(p.content||'')}</div>
       ${preview}
     </div>`;
@@ -143,15 +149,31 @@ document.getElementById('send').onclick = async () => {
   if(!content && !hasFile) return;
 
   try{
-    const fileId = await uploadFileIfAny();
+    // 获取当前用户信息
+    const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!me || !me.username) {
+      alert('请先登录');
+      return;
+    }
 
-    const resp = await fetch('/api/posts/create', {
+    // 如果有文件，先上传文件获取URL
+    let image_url = null;
+    const fileId = await uploadFileIfAny();
+    if (fileId) {
+      image_url = `/api/files/${fileId}`;
+    }
+
+    const payload = {
+      content,
+      image_url,
+      username: me.username,
+      user_id: me.id,
+    };
+
+    const resp = await fetch('/api/posts/add', {
       method: 'POST',
-      headers: {
-        'Content-Type':'application/json',
-        'X-User-Id': userId  // ⛳ 不再用 Authorization，改用 X-User-Id
-      },
-      body: JSON.stringify({ content, fileId })
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
     });
 
     const j = await resp.json();
@@ -169,5 +191,13 @@ document.getElementById('send').onclick = async () => {
 
 load(); setInterval(load, 3000);
 checkDatabase();
+
+// "我的"按钮点击处理
+document.getElementById('mineLink').addEventListener('click', (e)=>{
+  e.preventDefault();
+  const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!me?.username) return location.href = 'login.html';
+  location.href = `/profile.html?user=${encodeURIComponent(me.username)}`;
+});
 </script>
 </body></html>

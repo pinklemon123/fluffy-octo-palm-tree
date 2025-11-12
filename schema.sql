@@ -2,21 +2,45 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 SET TIME ZONE 'UTC';
 
--- === 用户表 ===
+-- === 用户表（统一结构）===
 CREATE TABLE IF NOT EXISTS users (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            text PRIMARY KEY,                           -- 使用text作为主键，更灵活
   username      text UNIQUE NOT NULL CHECK (length(username) BETWEEN 1 AND 32),
-  password_hash text NOT NULL,
+  display_name  text,                                       -- 显示名称
+  password_hash text,                                       -- 密码哈希（可选）
   avatar_url    text,
   bio           text,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
--- === 文件表 ===
+-- === 帖子表（支持冗余username）===
+CREATE TABLE IF NOT EXISTS posts (
+  id         bigserial PRIMARY KEY,
+  content    text DEFAULT '',
+  image_url  text,                                          -- 图片URL
+  user_id    text,                                          -- 引用 users.id（不强制外键）
+  username   text,                                          -- 冗余username，方便渲染
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id, created_at DESC);
+
+-- === 关注表 ===
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id  text NOT NULL,                               -- 关注者ID
+  followee_id  text NOT NULL,                               -- 被关注者ID
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (follower_id, followee_id),
+  CONSTRAINT follows_self CHECK (follower_id <> followee_id)
+);
+CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id);
+
+-- === 文件表（可选，如果需要文件上传）===
 CREATE TABLE IF NOT EXISTS files (
-  id         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id    uuid REFERENCES users(id) ON DELETE SET NULL, -- 允许匿名上传
+  id         text PRIMARY KEY,
+  user_id    text,                                          -- 引用 users.id
   filename   text NOT NULL,
   mime       text NOT NULL,
   size       integer NOT NULL CHECK (size >= 0),
@@ -25,28 +49,18 @@ CREATE TABLE IF NOT EXISTS files (
 );
 CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id, created_at DESC);
 
--- === 帖子表 ===
-CREATE TABLE IF NOT EXISTS posts (
-  id         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id    uuid REFERENCES users(id) ON DELETE SET NULL, -- 允许匿名发帖
-  content    text NOT NULL,
-  file_id    uuid REFERENCES files(id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id, created_at DESC);
+-- === 数据回填（修复历史数据）===
+-- 如果 posts.user_id 存在且能对上 users.id，用它补 username
+UPDATE posts p
+SET username = u.username
+FROM users u
+WHERE p.user_id = u.id AND p.username IS NULL;
 
--- === 关注表 ===
-CREATE TABLE IF NOT EXISTS follows (
-  id           uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  follower_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  following_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT follows_unique UNIQUE (follower_id, following_id),
-  CONSTRAINT follows_self CHECK (follower_id <> following_id)
-);
-CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
-CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+-- 如果只有 username，没有 user_id，但能对上 users.username，用它补 user_id  
+UPDATE posts p
+SET user_id = u.id
+FROM users u
+WHERE p.username = u.username AND p.user_id IS NULL;
 
 -- === 视图 ===
 CREATE OR REPLACE VIEW posts_view AS
