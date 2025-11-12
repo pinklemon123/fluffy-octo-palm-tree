@@ -87,9 +87,13 @@ async function load(){
         preview = `<a href='${fileUrl}' download='${p.file.filename}'>下载附件</a>`;
       }
     }
-    const uname = (p.user&&p.user.username) || '匿名';
+    const uname = p.username || '匿名';  // 使用新API返回的username字段
+    const nameHtml = p.username
+      ? `<a href="/profile.html?user=${encodeURIComponent(p.username)}">${escapeHtml(uname)}</a>`
+      : `<span style="color:#999">${escapeHtml(uname)}</span>`;  // "匿名"不加链接
+    
     el.innerHTML += `<div class="post">
-      <div class="meta"><a href='profile.html?user=${encodeURIComponent(uname)}'>${uname}</a> · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
+      <div class="meta">${nameHtml} · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div>${escapeHtml(p.content||'')}</div>
       ${preview}
     </div>`;
@@ -143,15 +147,31 @@ document.getElementById('send').onclick = async () => {
   if(!content && !hasFile) return;
 
   try{
-    const fileId = await uploadFileIfAny();
+    // 获取当前用户信息
+    const me = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!me || !me.username) {
+      alert('请先登录');
+      return;
+    }
 
-    const resp = await fetch('/api/posts/create', {
+    // 如果有文件，先上传文件获取URL
+    let image_url = null;
+    const fileId = await uploadFileIfAny();
+    if (fileId) {
+      image_url = `/api/files/${fileId}`;
+    }
+
+    const payload = {
+      content,
+      image_url,
+      username: me.username,
+      user_id: me.id,
+    };
+
+    const resp = await fetch('/api/posts/add', {
       method: 'POST',
-      headers: {
-        'Content-Type':'application/json',
-        'X-User-Id': userId  // ⛳ 不再用 Authorization，改用 X-User-Id
-      },
-      body: JSON.stringify({ content, fileId })
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
     });
 
     const j = await resp.json();

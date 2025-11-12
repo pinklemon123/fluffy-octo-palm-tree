@@ -1,2 +1,31 @@
-import { q } from '../_utils/db-node.js';
-export default async function handler(req,res){ const username = String(req.query.user||'').trim(); if(!username) return res.status(400).json({ ok:false, error:'缺少 user' }); try{ const { rows } = await q('select following from follows_view where follower=$1',[username]); res.json({ ok:true, follows: rows }); } catch(e){ res.status(500).json({ ok:false, error:e.message }); } }
+import { neon } from "@neondatabase/serverless";
+
+export default async function handler(req,res){
+  try{
+    const { user_id, type='following' } = req.query;
+    if (!user_id) return res.status(400).json({ ok:false, error:"user_id required" });
+    const sql = neon(process.env.DATABASE_URL);
+
+    if (type === 'followers'){
+      const rows = await sql/*sql*/`
+        select u.id, u.username, u.display_name, u.avatar_url
+        from follows f
+        join users u on u.id = f.follower_id
+        where f.followee_id = ${user_id}
+        order by f.created_at desc
+      `;
+      return res.json({ ok:true, users: rows });
+    } else {
+      const rows = await sql/*sql*/`
+        select u.id, u.username, u.display_name, u.avatar_url
+        from follows f
+        join users u on u.id = f.followee_id
+        where f.follower_id = ${user_id}
+        order by f.created_at desc
+      `;
+      return res.json({ ok:true, users: rows });
+    }
+  }catch(e){
+    res.status(500).json({ ok:false, error:String(e?.message||e) })
+  }
+}
