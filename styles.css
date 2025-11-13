@@ -30,6 +30,7 @@ html,body{
 body{
   min-height:100vh;
   background:
+    url('png/images.jpg') center/cover no-repeat fixed,
     radial-gradient(circle at 10% 20%, rgba(34,197,94,0.20) 0, rgba(34,197,94,0) 45%),
     radial-gradient(circle at 80% 0%, rgba(45,212,191,0.20) 0, rgba(45,212,191,0) 55%),
     radial-gradient(circle at 0% 100%, rgba(59,130,246,0.14) 0, rgba(59,130,246,0) 55%),
@@ -45,7 +46,8 @@ body{
   pointer-events:none;
   opacity:0.45;
   mix-blend-mode:soft-light;
-  background-image:
+  background:
+    rgba(236, 253, 245, 0.75),
     radial-gradient(circle at 12% 18%, rgba(16,185,129,0.30) 0, transparent 24px),
     radial-gradient(circle at 80% 70%, rgba(56,189,248,0.30) 0, transparent 26px),
     radial-gradient(circle at 30% 90%, rgba(52,211,153,0.25) 0, transparent 20px),
@@ -396,4 +398,13 @@ input[type="password"]:focus{
 }
 .link-muted:hover{
   color:var(--brand-600);
+}
+
+/* 帖子卡片悬浮效果 */
+.post-card{
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+.post-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 16px 40px rgba(15,118,110,0.18);
 }

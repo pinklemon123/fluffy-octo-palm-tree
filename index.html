@@ -33,16 +33,19 @@
     公共讨论区
   </h2>
   <div id="authBox" class="row">
+    <span id="dbStatus" class="badge">数据库已连接</span>
     <a href="#" id="mineLink" class="btn">我的</a>
     <a href="login.html" id="loginLink" class="btn">登录</a>
     <button id="logoutBtn" class="btn" style="display:none">退出</button>
   </div>
 </div>
 
-<div id="dbStatus" class="badge" style="margin-bottom:20px"></div>
-
 <!-- 发帖区域 -->
 <div class="card emphasis" style="margin-bottom:24px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <div style="font-size:14px;font-weight:600;color:#065f46;">发一条新帖子</div>
+    <div style="font-size:12px;color:#6b7280;">支持文字、图片和 PDF</div>
+  </div>
   <div style="display:flex;gap:12px;align-items:flex-start">
     <textarea id="content" rows="3" style="flex:1;resize:vertical" placeholder="说点什么..."></textarea>
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -136,7 +139,7 @@ async function load(){
       ? `<a href="/profile.html?user=${encodeURIComponent(p.username)}">${escapeHtml(uname)}</a>`
       : `<span style="color:#999">${escapeHtml(uname)}</span>`;  // "匿名"不加链接
     
-    el.innerHTML += `<div class="post card">
+    el.innerHTML += `<div class="post card post-card">
       <div class="meta">${nameHtml} · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div>${escapeHtml(p.content||'')}</div>
       ${preview}
