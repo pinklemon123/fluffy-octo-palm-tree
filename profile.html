@@ -5,65 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
   <title>个人空间</title>
-  <style>
-    :root{
-      --brand:#22c55e;      /* 主绿色 */
-      --brand-600:#16a34a;
-      --brand-50:#ecfdf5;
-      --text:#111827;
-      --muted:#6b7280;
-      --card:#ffffff;
-      --bg:#f6f7f8;
-      --border:#e5e7eb;
-      --radius:14px;
-      --shadow:0 6px 24px rgba(16,185,129,.12);
-    }
-
-    html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
-    .container{max-width:920px;margin:0 auto;padding:24px;}
-    
-    .row{display:flex;gap:12px;align-items:center}
-    
-    .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:var(--brand-50);color:var(--brand-600);font-size:12px;border:1px solid #d1fae5}
-    
-    .btn{
-      display:inline-flex;align-items:center;justify-content:center;
-      padding:8px 14px;border-radius:12px;border:1px solid var(--border);
-      background:#fff; transition:.2s; cursor:pointer; text-decoration:none;
-    }
-    .btn:hover{box-shadow:var(--shadow)}
-    .btn-primary{background:var(--brand); color:#fff; border-color:var(--brand); }
-    .btn-primary:hover{background:var(--brand-600)}
-
-    .card{
-      background:var(--card); border:1px solid var(--border);
-      border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:12px 0;
-    }
-
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-    .avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--brand-50);object-fit:cover}
-    .avatar-sm{width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--border)}
-
-    .badge-row{display:flex;gap:8px;flex-wrap:wrap}
-    .link-muted{color:var(--muted);text-decoration:none}
-    .link-muted:hover{color:var(--brand-600)}
-
-    /* Modal styles */
-    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:none}
-    .modal-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:var(--radius);max-width:400px;width:90%}
-    .user-item{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
-    .user-item:last-child{border-bottom:none}
-    .user-item a{color:var(--text);text-decoration:none;font-weight:500}
-    .user-item a:hover{color:var(--brand-600)}
-  </style>
 </head>
-<body>
+<body class="app-shell profile-page">
+<main class="page-main">
 <div class="container">
-  <div class="row" style="margin-bottom:20px">
+  <div class="page-header">
     <a href="index.html" class="btn">← 返回</a>
-    <h2 style="margin:0;flex:1">个人空间</h2>
-    <button id="followBtn" class="btn btn-primary" style="display:none">关注</button>
-    <button id="editBtn" class="btn" style="display:none">编辑资料</button>
+    <h2 class="page-title">
+      <span class="badge-dot"></span>
+      个人空间
+    </h2>
+    <div class="row">
+      <button id="followBtn" class="btn btn-primary" style="display:none">关注</button>
+      <button id="editBtn" class="btn" style="display:none">编辑资料</button>
+    </div>
   </div>
 
   <!-- 用户信息卡片 -->
@@ -80,12 +35,13 @@
     </div>
   </div>
 
-  <h3 style="margin:20px 0 10px">TA 的帖子</h3>
+  <h3>TA 的帖子</h3>
   <div id="posts" class="grid"></div>
 
-  <h3 style="margin:20px 0 10px">TA 的文件</h3>
+  <h3>TA 的文件</h3>
   <div id="files" class="grid"></div>
 </div>
+</main>
 
 <!-- Modal弹窗 -->
 <div id="modal" class="modal">

@@ -2,53 +2,37 @@
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <link rel="stylesheet" href="styles.css"/>
 <title>讨论区</title>
-<style>
-:root{
-  --brand:#22c55e;
-  --brand-600:#16a34a;
-  --brand-50:#ecfdf5;
-  --text:#111827;
-  --muted:#6b7280;
-  --card:#ffffff;
-  --bg:#f6f7f8;
-  --border:#e5e7eb;
-  --radius:14px;
-  --shadow:0 6px 24px rgba(16,185,129,.12);
-}
+</head><body class="app-shell">
 
-html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;}
-.container{max-width:920px;margin:0 auto;padding:24px;}
+<!-- 开屏特效 -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="splash-dot"></div>
+    <div class="splash-title">Green ChatWall</div>
+    <div class="splash-tagline">轻松分享 · 绿色小宇宙</div>
+    <div class="splash-pulse">
+      <span class="splash-pulse-dot"></span>
+      <span>正在进入讨论区…</span>
+    </div>
+  </div>
+</div>
 
-.row{display:flex;gap:12px;align-items:center}
+<!-- 漂浮渐变块 -->
+<div class="bg-decor">
+  <div class="floating-shape fs-1"></div>
+  <div class="floating-shape fs-2"></div>
+  <div class="floating-shape fs-3"></div>
+</div>
 
-.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:var(--brand-50);color:var(--brand-600);font-size:12px;border:1px solid #d1fae5}
-
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:8px 14px;border-radius:12px;border:1px solid var(--border);
-  background:#fff; transition:.2s; cursor:pointer; text-decoration:none;
-}
-.btn:hover{box-shadow:var(--shadow)}
-.btn-primary{background:var(--brand); color:#fff; border-color:var(--brand); }
-.btn-primary:hover{background:var(--brand-600)}
-
-.card{
-  background:var(--card); border:1px solid var(--border);
-  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:12px 0;
-}
-
-.post{margin-bottom:16px}
-.post .meta{color:var(--muted);font-size:12px;margin-bottom:6px}
-.post .content{line-height:1.6}
-
-#authBox a{color:var(--text);text-decoration:none;margin-left:12px}
-#authBox a:hover{color:var(--brand-600)}
-</style>
-</head><body>
+<main class="page-main">
 <div class="container">
-<div class="row" style="margin-bottom:20px">
-  <h2 style="flex:1;margin:0">公共讨论区</h2>
-  <div id="authBox">
+
+<div class="page-header">
+  <h2 class="page-title">
+    <span class="badge-dot"></span>
+    公共讨论区
+  </h2>
+  <div id="authBox" class="row">
     <a href="#" id="mineLink" class="btn">我的</a>
     <a href="login.html" id="loginLink" class="btn">登录</a>
     <button id="logoutBtn" class="btn" style="display:none">退出</button>
@@ -58,9 +42,9 @@ html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple
 <div id="dbStatus" class="badge" style="margin-bottom:20px"></div>
 
 <!-- 发帖区域 -->
-<div class="card" style="margin-bottom:24px">
+<div class="card emphasis" style="margin-bottom:24px">
   <div style="display:flex;gap:12px;align-items:flex-start">
-    <textarea id="content" rows="3" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical" placeholder="说点什么..."></textarea>
+    <textarea id="content" rows="3" style="flex:1;resize:vertical" placeholder="说点什么..."></textarea>
     <div style="display:flex;flex-direction:column;gap:8px">
       <input type="file" id="fileInput" style="font-size:12px" />
       <button id="send" class="btn btn-primary">发送</button>
@@ -72,8 +56,17 @@ html,body{background:var(--bg); color:var(--text); margin:0; font-family: -apple
 <div id="list"></div>
 
 </div>
+</main>
 
 <script>
+// 开屏动画：页面加载后自动淡出
+window.addEventListener('load', () => {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  setTimeout(() => splash.classList.add('hide'), 1200); // 1.2 秒后开始淡出
+  setTimeout(() => splash.remove(), 2000);              // 2 秒后移除节点
+});
+
 // 封装成函数，随用随取
 const getUserId = () => localStorage.getItem('userId');
 const getToken = () => localStorage.getItem('token'); // 保留以备后用
@@ -143,7 +136,7 @@ async function load(){
       ? `<a href="/profile.html?user=${encodeURIComponent(p.username)}">${escapeHtml(uname)}</a>`
       : `<span style="color:#999">${escapeHtml(uname)}</span>`;  // "匿名"不加链接
     
-    el.innerHTML += `<div class="post">
+    el.innerHTML += `<div class="post card">
       <div class="meta">${nameHtml} · ${new Date(p.created_at||p.createdAt).toLocaleString()}</div>
       <div>${escapeHtml(p.content||'')}</div>
       ${preview}
