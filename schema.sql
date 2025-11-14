@@ -99,3 +99,15 @@ SELECT uf.username AS follower, ut.username AS following, fo.created_at
 FROM follows fo
 JOIN users uf ON uf.id = fo.follower_id
 JOIN users ut ON ut.id = fo.following_id;
+
+-- === 开放设计投稿表 ===
+-- 匿名投稿，不关联用户
+CREATE TABLE IF NOT EXISTS design_posts (
+  id          bigserial PRIMARY KEY,
+  description text,
+  file_id     text,           -- 引用 files.id（不强制外键）
+  external_url text,          -- 外部链接
+  file_type   text,           -- 基于文件mime或扩展名的类型提示
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_design_posts_created ON design_posts(created_at DESC);
