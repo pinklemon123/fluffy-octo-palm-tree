@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>开放设计</title>
+</head>
+<body class="app-shell">
+  <div class="bg-decor">
+    <div class="floating-shape fs-1"></div>
+    <div class="floating-shape fs-2"></div>
+    <div class="floating-shape fs-3"></div>
+  </div>
+
+  <main class="page-main">
+    <div class="container">
+      <div class="page-header">
+        <h2 class="page-title">
+          <span class="badge-dot"></span>
+          开放设计
+        </h2>
+        <div class="row">
+          <a href="index.html" class="btn">← 返回讨论区</a>
+        </div>
+      </div>
+
+      <!-- 投稿区 -->
+      <div class="card emphasis">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:600;color:#065f46;">提交你的作品</div>
+          <div style="font-size:12px;color:#6b7280;">最多5MB；支持 HTML/TXT/ZIP/链接</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <textarea id="desc" rows="3" placeholder="简要介绍你的作品（建议必填）" style="flex:1;min-width:260px"></textarea>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
+            <input id="link" placeholder="或粘贴一个外部链接（可选）" />
+            <input type="file" id="file" accept=".html,.htm,.txt,.md,.zip,.pdf" />
+            <button id="submit" class="btn btn-primary">提交</button>
+          </div>
+        </div>
+        <div id="hint" class="link-muted" style="margin-top:8px;font-size:12px">至少提供文件或链接其一。HTML 可以小窗预览，TXT 显示摘要，链接将新开页。</div>
+      </div>
+
+      <!-- 列表区 -->
+      <h3 style="margin:20px 0 10px">最新投稿</h3>
+      <div id="list" class="grid"></div>
+    </div>
+  </main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));
+
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({ headers: {} }, opt));
+  const t = await r.text();
+  let j; try{ j = JSON.parse(t) } catch { j = { ok:false, error:t } }
+  if (!r.ok || j.ok === false) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function cardFor(post){
+  const d = document.createElement('div'); d.className = 'card post-card';
+  const time = new Date(post.created_at).toLocaleString();
+  let preview = '';
+
+  if (post.external_url){
+    preview = `<a class="btn" href="${esc(post.external_url)}" target="_blank">打开外部链接</a>`;
+  } else if (post.file_url){
+    const ft = (post.file_type||'').toLowerCase();
+    if (ft.includes('html')){
+      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:220px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    } else if (ft.includes('text') || ft.includes('txt') || ft.includes('markdown')){
+      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:160px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    } else if (ft.includes('pdf')){
+      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:260px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    } else {
+      preview = `<a class="btn" href="${esc(post.file_url)}" target="_blank">下载/查看文件</a>`;
+    }
+  }
+
+  d.innerHTML = `
+    <div class="meta" style="color:var(--muted);font-size:12px">${time}</div>
+    <div style="margin:.25rem 0;white-space:pre-wrap;line-height:1.6">${esc(post.description||'')}</div>
+    <div style="margin-top:8px">${preview}</div>
+  `;
+  return d;
+}
+
+async function load(){
+  try{
+    const j = await api('/api/design/list');
+    const box = $('#list'); box.innerHTML='';
+    (j.data||[]).forEach(p => box.appendChild(cardFor(p)));
+  }catch(e){
+    alert('加载失败：' + e.message);
+  }
+}
+
+async function uploadIfAny(){
+  const f = $('#file').files[0];
+  if (!f) return null;
+  if (f.size > 5 * 1024 * 1024) throw new Error('文件过大，最大 5MB');
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/files/upload', { method:'POST', body: fd });
+  const t = await r.text(); let j; try{ j = JSON.parse(t) } catch { j = { ok:false, error:t } }
+  if (!r.ok || j.ok === false) throw new Error(j.error || '上传失败');
+  return j.id || j.file?.id;
+}
+
+$('#submit').onclick = async () => {
+  const description = $('#desc').value.trim();
+  const link = $('#link').value.trim();
+  try{
+    const fileId = await uploadIfAny();
+    if (!fileId && !link) return alert('请至少提供文件或链接其一');
+
+    const payload = { description, external_url: link || null, file_id: fileId || null };
+    const j = await api('/api/design/add', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
+    // 清空表单
+    $('#desc').value = '';
+    $('#link').value = '';
+    $('#file').value = '';
+
+    // 预置在顶部
+    const box = $('#list');
+    box.prepend(cardFor(j.post));
+  }catch(e){
+    alert(e.message || '提交失败');
+  }
+};
+
+load();
+</script>
+</body>
+</html>
