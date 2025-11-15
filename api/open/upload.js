@@ -1,4 +1,3 @@
-import { put } from '@vercel/blob';
 import fs from 'fs';
 import formidable from 'formidable';
 
@@ -30,12 +29,13 @@ export default async function handler(req, res) {
 
     const name = f.originalFilename || f.newFilename || 'upload.bin';
     const mime = f.mimetype || f.mime || 'application/octet-stream';
-    const key = `open/${Date.now()}_${name}`;
 
-    const stream = fs.createReadStream(filePath);
-    const { url, pathname } = await put(key, stream, { access: 'public', contentType: mime });
+    // 直接转为 data:URL，避免外部存储依赖
+    const buffer = await fs.promises.readFile(filePath);
+    const base64 = buffer.toString('base64');
+    const url = `data:${mime};base64,${base64}`;
 
-    return res.json({ ok:true, url, storage_key: pathname, mime_type: mime, size_bytes: size });
+    return res.json({ ok:true, url, storage_key: null, mime_type: mime, size_bytes: size, name });
   } catch (e) {
     console.error('open/upload error:', e);
     res.status(500).json({ ok:false, error: e?.message || String(e) });
