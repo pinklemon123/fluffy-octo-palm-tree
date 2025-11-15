@@ -48,6 +48,17 @@
     </div>
   </main>
 
+  <!-- 预览大窗 -->
+  <div id="viewer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(96vw,1100px);height:min(90vh,800px);background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:14px;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div id="viewerTitle" style="font-weight:600;color:#065f46">预览</div>
+        <button onclick="closeViewer()" class="btn" style="min-width:auto">关闭</button>
+      </div>
+      <div id="viewerBody" style="flex:1;min-height:0"></div>
+    </div>
+  </div>
+
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));
@@ -66,19 +77,49 @@ function cardFor(post){
   const d = document.createElement('div'); d.className = 'card post-card';
   const time = new Date(post.created_at).toLocaleString();
   let preview = '';
+  const ft = (post.file_type||'').toLowerCase();
+  const hasFile = !!post.file_url;
+  const extFromType = (t)=>{
+    if (!t) return 'bin';
+    if (t.includes('html')) return 'html';
+    if (t.includes('pdf')) return 'pdf';
+    if (t.includes('text') || t.includes('txt') || t.includes('markdown')) return 'txt';
+    return 'bin';
+  };
+  const dlName = `design_${post.id || 'file'}.${extFromType(ft)}`;
 
   if (post.external_url){
     preview = `<a class="btn" href="${esc(post.external_url)}" target="_blank">打开外部链接</a>`;
   } else if (post.file_url){
-    const ft = (post.file_type||'').toLowerCase();
     if (ft.includes('html')){
-      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:220px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+      preview = `
+        <iframe src="${esc(post.file_url)}" style="width:100%;height:220px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <a class="btn" href="${esc(post.file_url)}" target="_blank" rel="noopener">新窗口打开</a>
+          <a class="btn" href="${esc(post.file_url)}" download="${esc(dlName)}">下载</a>
+          <button class="btn" onclick='openViewer(${JSON.stringify({ id:post.id, url:post.file_url, type:ft })})'>放大预览</button>
+        </div>`;
     } else if (ft.includes('text') || ft.includes('txt') || ft.includes('markdown')){
-      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:160px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+      preview = `
+        <iframe src="${esc(post.file_url)}" style="width:100%;height:160px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <a class="btn" href="${esc(post.file_url)}" target="_blank" rel="noopener">新窗口打开</a>
+          <a class="btn" href="${esc(post.file_url)}" download="${esc(dlName)}">下载</a>
+          <button class="btn" onclick='openViewer(${JSON.stringify({ id:post.id, url:post.file_url, type:ft })})'>放大预览</button>
+        </div>`;
     } else if (ft.includes('pdf')){
-      preview = `<iframe src="${esc(post.file_url)}" style="width:100%;height:260px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+      preview = `
+        <iframe src="${esc(post.file_url)}" style="width:100%;height:260px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <a class="btn" href="${esc(post.file_url)}" target="_blank" rel="noopener">新窗口打开</a>
+          <a class="btn" href="${esc(post.file_url)}" download="${esc(dlName)}">下载</a>
+        </div>`;
     } else {
-      preview = `<a class="btn" href="${esc(post.file_url)}" target="_blank">下载/查看文件</a>`;
+      preview = `
+        <div style="display:flex;gap:8px">
+          <a class="btn" href="${esc(post.file_url)}" target="_blank" rel="noopener">打开</a>
+          <a class="btn" href="${esc(post.file_url)}" download="${esc(dlName)}">下载</a>
+        </div>`;
     }
   }
 
@@ -89,6 +130,17 @@ function cardFor(post){
   `;
   return d;
 }
+
+function openViewer(info){
+  const box = $('#viewer');
+  const body = $('#viewerBody');
+  const title = $('#viewerTitle');
+  title.textContent = `预览 #${info.id || ''}`.trim();
+  const h = '78vh';
+  body.innerHTML = `<iframe src="${esc(info.url)}" style="width:100%;height:${h};border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+  box.style.display = 'block';
+}
+function closeViewer(){ $('#viewer').style.display = 'none'; }
 
 async function load(){
   try{
