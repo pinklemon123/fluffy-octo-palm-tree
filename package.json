@@ -6,6 +6,7 @@
     "start": "vercel dev"
   },
   "dependencies": {
+    "@vercel/blob": "^0.23.3",
     "@neondatabase/serverless": "^0.10.4",
     "bcryptjs": "^2.4.3",
     "formidable": "^3.5.4",

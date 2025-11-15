@@ -111,3 +111,15 @@ CREATE TABLE IF NOT EXISTS design_posts (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_design_posts_created ON design_posts(created_at DESC);
+
+-- === 开放设计附件表（匿名，关联 design_posts） ===
+CREATE TABLE IF NOT EXISTS design_assets (
+  id           bigserial PRIMARY KEY,
+  entry_id     bigint REFERENCES design_posts(id) ON DELETE CASCADE,
+  storage_key  text,
+  url          text NOT NULL,
+  mime_type    text,
+  size_bytes   integer CHECK (size_bytes >= 0 AND size_bytes <= 5*1024*1024),
+  created_at   timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_design_assets_entry ON design_assets(entry_id);
