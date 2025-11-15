@@ -12,6 +12,7 @@ export default async function handler(req, res){
         dp.description,
         dp.file_id,
         dp.external_url,
+        dp.content_url,
         dp.created_at,
         COALESCE(a.mime_type, f.mime) AS file_type,
         a.url AS asset_url
@@ -39,7 +40,9 @@ export default async function handler(req, res){
       file_type: x.file_type || null,
       file_url: x.asset_url
         ? x.asset_url
-        : (x.file_id ? `/api/files/${x.file_id}` : null),
+        : (x.content_url
+            ? x.content_url
+            : (x.file_id ? `/api/files/${x.file_id}` : null)),
     }));
 
     res.json({ ok:true, data: rows });

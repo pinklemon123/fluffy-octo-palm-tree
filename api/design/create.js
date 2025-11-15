@@ -24,10 +24,20 @@ export default async function handler(req, res){
 
     const file_type = asset?.mime_type || null;
 
-    const ins = await q(
-      'INSERT INTO design_posts(description, file_id, external_url, file_type) VALUES ($1,$2,$3,$4) RETURNING id, description, file_id, external_url, file_type, created_at',
-      [description || null, null, external_url, file_type]
-    );
+    let ins;
+    try{
+      // 优先尝试写入 content_url（生产库存在该列）
+      ins = await q(
+        'INSERT INTO design_posts(description, file_id, external_url, file_type, content_url) VALUES ($1,$2,$3,$4,$5) RETURNING id, description, file_id, external_url, file_type, content_url, created_at',
+        [description || null, null, external_url, file_type, asset?.url || null]
+      );
+    }catch(e){
+      // 兼容无 content_url 的库
+      ins = await q(
+        'INSERT INTO design_posts(description, file_id, external_url, file_type) VALUES ($1,$2,$3,$4) RETURNING id, description, file_id, external_url, file_type, created_at',
+        [description || null, null, external_url, file_type]
+      );
+    }
     const post = ins.rows[0];
 
     let file_url = null;
