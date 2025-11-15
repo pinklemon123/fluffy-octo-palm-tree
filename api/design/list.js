@@ -14,7 +14,7 @@ export default async function handler(req, res){
         dp.external_url,
         dp.content_url,
         dp.created_at,
-        COALESCE(a.mime_type, f.mime) AS file_type,
+        COALESCE(a.mime_type, dp.file_type, f.mime) AS file_type,
         a.url AS asset_url
       FROM design_posts dp
       LEFT JOIN LATERAL (
@@ -27,7 +27,7 @@ export default async function handler(req, res){
         LIMIT 1
       ) a ON true
       LEFT JOIN files f
-        ON f.id = dp.file_id
+        ON f.id::text = dp.file_id::text
       ORDER BY dp.created_at DESC
       LIMIT 200
     `);
