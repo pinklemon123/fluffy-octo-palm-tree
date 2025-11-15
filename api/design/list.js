@@ -12,7 +12,7 @@ export default async function handler(req, res){
       LEFT JOIN LATERAL (
         SELECT da.url, da.mime_type
         FROM design_assets da
-        WHERE da.entry_id = dp.id
+        WHERE da.entry_id::text = dp.id::text
         ORDER BY da.created_at DESC
         LIMIT 1
       ) a ON true
